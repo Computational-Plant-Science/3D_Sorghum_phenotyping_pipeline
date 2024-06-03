@@ -6,16 +6,25 @@ Pipeline: Traits computation from 3D Sorghum root models
 
 
 ![Optional Text](../main/media/3A10.png)
+
+Example of 3D Sorghum root models  (genotype 3A10)
+
 ![Optional Text](../main/media/5A22.png)
 
-Example of 3D Sorghum root models from different genotypes (3A10 v.s. 5A22):
+Example of 3D Sorghum root models (genotype 5A22)
 
 
 ![Optional Text](../main/media/Sorghum_demo.gif)
 
 One sample trait computed from 3D Sorghum point cloud model
 
-Angle of Simplified root structure curve line
+Angle of simplified root structure curve line
+
+
+![Optional Text](../main/media/5A22_R1_traits.png)
+
+Computed traits illustration 
+
 
 
 
