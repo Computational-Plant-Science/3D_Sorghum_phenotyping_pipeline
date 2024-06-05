@@ -27,16 +27,10 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y \
 
 RUN pip3 install --upgrade pip && \
     pip3 install numpy \
-    numexpr \
     matplotlib \
-    mahotas \
-    psutil \
     pytest \
-    coverage \
-    coveralls \
     open3d \
     openpyxl \
-    click \
     PyYAML \
     imutils
 
