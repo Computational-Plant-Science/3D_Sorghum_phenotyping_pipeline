@@ -10,6 +10,7 @@ RUN apt update
 RUN DEBIAN_FRONTEND="noninteractive" TZ="America/New_York" apt-get install -y \
     build-essential \
     aptitude \
+    libglu1-mesa-dev \
     mesa-common-dev \
     libxrandr-dev \
     libxinerama-dev \
@@ -20,24 +21,43 @@ RUN DEBIAN_FRONTEND="noninteractive" TZ="America/New_York" apt-get install -y \
     python3-pip \
     python3 \
     python3-tk \
+    python3-pil.imagetk \
+    libgl1-mesa-glx \
     libsm6 \
     libxext6 \
     cmake-gui \
+    freeglut3-dev \
+    freeglut3 \
+    libopengl0 -y \
     mesa-utils \
     software-properties-common \
+    libcairo2 \
+    python3-cairo \
     nano \
     xorg-dev
 
 
+RUN cd /opt/code/compiled/ && rm -rf Release && mkdir Release && cd Release && cmake -DCMAKE_BUILD_TYPE=Release ..   && make
+
 
 RUN pip3 install --upgrade pip && \
     pip3 install numpy \
+    numexpr \
     matplotlib \
+    mahotas \
+    plyfile \
+    psutil \
+    pandas \
     pytest \
+    coverage \
+    coveralls \
     open3d \
     openpyxl \
     click \
-    PyYAML
+    PyYAML \
+    imutils
+
+
 
 
 RUN chmod +x /opt/code/shim.sh 
