@@ -9,15 +9,15 @@ Author-email: suxingliu@gmail.com
 
 USAGE:
 
-    python3 model_alignment.py -i ~/example/test.ply -o ~/example/result/
+    python3 model_alignment.py -i ~/example/test.ply -o ~/example/result/ --n_plane 5 --slicing_ratio 0.1 --adjustment 0
     
 
 PARAMETERS:
     ("-i", "--input", dest="input", required=True, type=str, help="full path to 3D model file")
     ("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
-    ("-n", "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
-    ("-sr", "--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
-
+    ("--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
+    ("--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
+    ("--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
 
 INPUT:
     
@@ -33,7 +33,7 @@ OUTPUT:
 
 
 # import the necessary packages
-import numpy as np 
+import numpy as np
 import argparse
 
 import os
@@ -41,8 +41,8 @@ import sys
 import open3d as o3d
 import copy
 
-from scipy.spatial.transform import Rotation as Rot
-import math
+#from scipy.spatial.transform import Rotation as Rot
+#import math
 import pathlib
 
 from matplotlib import pyplot as plt
@@ -179,7 +179,7 @@ def get_pt_sel(Data_array_pt):
     # load points cloud Z values and sort it
     Z_pt_sorted = np.sort(Data_array_pt[:,2])
     
-    #slicing_factor = 
+    #slicing_factor
     
     idx_sel = int(len(Z_pt_sorted)*slicing_ratio) 
     
@@ -227,7 +227,7 @@ def get_pt_parameter(Data_array_pt):
 
     
 # align  ply model with z axis
-def model_alignment(model_file, result_path, adjustment_sign):
+def model_alignment(model_file, result_path, adjustment):
     
     
     # Load a ply point cloud
@@ -307,8 +307,8 @@ def model_alignment(model_file, result_path, adjustment_sign):
     
     #print(idx_sorted)
     
-    # apply adjustment if aligment was not correct
-    if adjustment_sign == 1:
+    # apply adjustment if alignment was not correct
+    if adjustment == 1:
         print("Manual adjustment was applied!")
         idx_sorted[0] = 1
 
@@ -487,13 +487,13 @@ if __name__ == '__main__':
     
     # construct the argument and parse the arguments
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", dest="input", required=True, type=str, help="full path to 3D model file")
-    #ap.add_argument("-p", "--path", dest = "path", required = True, type = str, help = "path to 3D model file")
+    ap.add_argument("-i", "--input", dest="input", type=str, required=True, help="full path to 3D model file")
+    #ap.add_argument("-p", "--path", dest = "path", type = str, required = True, help = "path to 3D model file")
     #ap.add_argument("-ft", "--filetype", dest = "filetype", type = str, required = False, default = 'ply', help = "3D model file filetype, default *.ply")
     ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
-    ap.add_argument("-n", "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
-    ap.add_argument("-sr", "--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
-    ap.add_argument("-as", "--adjustment_sign", dest = "adjustment_sign", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
+    ap.add_argument("--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
+    ap.add_argument( "--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
+    ap.add_argument( "--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
     args = vars(ap.parse_args())
 
     
@@ -515,15 +515,17 @@ if __name__ == '__main__':
         # print out result path
         print("results_folder: {}\n".format(result_path))
         
-        # number of slices for cross section
+        # number of slices for cross-section
         n_plane = args['n_plane']
         
         slicing_ratio = args["slicing_ratio"]
 
+        adjustment = args["adjustment"]
+
         # start pipeline
         ########################################################################################
         # model alignment 
-        pcd_r = model_alignment(input_file, result_path, adjustment_sign)
+        pcd_r = model_alignment(input_file, result_path, adjustment)
         
         
         
@@ -539,7 +541,7 @@ if __name__ == '__main__':
 
         # check saved file
         if os.path.exists(result_filename):
-            print("Converted 3d model was saved at {0}\n".format(filename))
+            print("Converted 3d model was saved at {0}\n".format(result_filename))
 
         else:
             print("Model file converter failed!\n")
@@ -573,7 +575,7 @@ if __name__ == '__main__':
     # number of slices for cross section
     n_plane = args["n_plane"]
     slicing_ratio = args["slicing_ratio"]
-    adjustment_sign = args["adjustment_sign"]
+    adjustment = args["adjustment"]
     
     
     # obtain model file list
@@ -603,11 +605,13 @@ if __name__ == '__main__':
             n_plane = args['n_plane']
             
             slicing_ratio = args["slicing_ratio"]
+            
+            adjustment = args["adjustment"]
 
             # start pipeline
             ########################################################################################
             # model alignment 
-            pcd_r = model_alignment(input_file, result_path, adjustment_sign)
+            pcd_r = model_alignment(input_file, result_path, adjustment)
             
             
             

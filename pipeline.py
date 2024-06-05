@@ -9,7 +9,10 @@ Author-email: suxingliu@gmail.com
 
 USAGE:
 
-    python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/ -n 5 
+    Default parameter mode: python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/
+
+    User define parameter mode: python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/ --n_plane 5 --slicing_ratio 0.1 --adjustment 0
+
 
 
 INPUT:
@@ -26,10 +29,12 @@ OUTPUT:
 
 PARAMETERS:
 
-    ap.add_argument("-i", "--input", dest = "input", required = True, type = str, help = "full path to 3D model file")
-    ap.add_argument("-o", "--output_path", dest = "output_path", required = False, type = str, help = "result path")
-    ap.add_argument("-n", "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
-    ap.add_argument("-v", "--visualize_model", dest = "visualize_model", required = False, type = int, default = 0, help = "Display model or not, deafult as no due to headless display in cluster")
+    ("-i", "--input", dest = "input", required = True, type = str, help = "full path to 3D model file")
+    ("-o", "--output_path", dest = "output_path", required = False, type = str, help = "result path")
+    ("--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
+    ("--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
+    ("--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
+    ("--visualize", dest = "visualize", type = int, required = False, default = 0, help = "Display model or not, default as no due to headless display in cluster")
 
 
 """
@@ -41,16 +46,7 @@ import argparse
 import pathlib
 
 
-'''
-import numpy as np 
 
-
-import psutil
-import concurrent.futures
-import multiprocessing
-from multiprocessing import Pool
-from contextlib import closing
-'''
 
 # execute script inside program
 def execute_script(cmd_line):
@@ -79,20 +75,20 @@ def execute_script(cmd_line):
 def model_analysis_pipeline(file_path, filename, basename, result_path):
 
     
-    # step 1  python3 model_measurement.py -i ~/example/test.ply  -o ~/example/ -n 5 -v 0
-    print("Transform point cloud model to its rotation center and align its upright orientation with Z direction...\n")
+    # step 1  python3 /opt/code/model_measurement.py -i ~/example/test.ply  -o ~/example/ --n_plane 5 --slicing_ratio 0.1 --adjustment 0
+    print("Step 1: Transform point cloud model to its rotation center and align its upright orientation with Z direction...\n")
 
-    format_convert = "python3 /opt/code/model_alignment.py -i " + file_path + filename + " -o " + result_path 
+    format_convert = "python3 /opt/code/model_alignment.py -i " + file_path + filename + " -o " + result_path + " --n_plane " + str(n_plane) + " --slicing_ratio " + str(slicing_ratio) + " --adjustment " + str(adjustment)
     
     print(format_convert)
     
     execute_script(format_convert)
     
     
-    # step 2 python3 model_measurement.py -i ~/example/test.ply  -o ~/example/ -n 5 -v 0
-    print("Compute all the traits...\n")
+    # step 2 python3 /opt/code/model_measurement.py -i ~/example/test.ply  -o ~/example/ --n_plane 5
+    print("Step 2: Compute 3D traits from the aligned 3D point cloud model...\n")
 
-    traits_computation = "python3 /opt/code/model_measurement.py -i " + result_path + basename + "_aligned.ply " + result_path + " -n " + str(n_plane) + " -v " + str(visualize_model)
+    traits_computation = "python3 /opt/code/model_measurement.py -i " + result_path + basename + "_aligned.ply " + " -o " + result_path + " --n_plane " + str(n_plane)
     
     print(traits_computation)
     
@@ -100,7 +96,7 @@ def model_analysis_pipeline(file_path, filename, basename, result_path):
     
     
     # step 3 grants read and write access to all result folders
-    print("Compute all the traits...")
+    print("Make result files accessible...\n")
 
     access_grant = "chmod 777 -R " + result_path 
     
@@ -109,9 +105,8 @@ def model_analysis_pipeline(file_path, filename, basename, result_path):
     execute_script(access_grant)
     
     
-
-
-# parelle processing of folders for local test only
+'''
+# parallel processing of folders for local test only
 def parallel_folders(subfolder_path):
 
     folder_name = os.path.basename(subfolder_path) 
@@ -133,7 +128,7 @@ def parallel_folders(subfolder_path):
 
 
 
-# get file information from the file path uisng os for python 2.7
+# get file information from the file path using os for python 2.7
 def get_fname(file_full_path):
     
     abs_path = os.path.abspath(file_full_path)
@@ -153,7 +148,7 @@ def fast_scandir(dirname):
     subfolders= sorted([f.path for f in os.scandir(dirname) if f.is_dir()])
     
     return subfolders
-
+'''
 
 
 
@@ -183,88 +178,88 @@ if __name__ == '__main__':
     
     # construct the argument and parse the arguments
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", dest = "input", required = True, type = str, help = "full path to 3D model file")
-    #ap.add_argument("-p", "--path", dest = "path", required = True, type = str, help = "path to 3D model file")
+    ap.add_argument("-i", "--input", dest = "input", type = str, required = True, help = "full path to 3D model file")
+    #ap.add_argument("-p", "--path", dest = "path", type = str, required = True, help = "path to 3D model file")
     #ap.add_argument("-ft", "--filetype", dest = "filetype", type = str, required = False, default = 'ply', help = "3D model file filetype, default *.ply")
-    ap.add_argument("-o", "--output_path", dest = "output_path", required = False, type = str, help = "result path")
-    ap.add_argument("-n", "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
-    ap.add_argument("-v", "--visualize_model", dest = "visualize_model", required = False, type = int, default = 0, help = "Display model or not, deafult as no due to headless display in cluster")
-    
+    ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
+    ap.add_argument( "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
+    ap.add_argument( "--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
+    ap.add_argument( "--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
     args = vars(ap.parse_args())
     
-    '''
-    # path to model file 
-    file_path = args["path"]
-    
-    
-    
-    # setting path to model file
-    file_path = args["path"]
 
-    ext = args['filetype'].split(',') if 'filetype' in args else []
-    
-    patterns = [os.path.join(file_path, f"*.{p}") for p in ext]
-    
-    model_List = [f for fs in [glob.glob(pattern) for pattern in patterns] for f in fs]
-    
-    
-    
-    # load input model files
-    
-    if len(model_List) > 0:
-    
-        print("Model files in input folder: '{}'\n".format(model_List))
-        
-        
-    
-    else:
-        print("3D model file does not exist")
-        sys.exit()
-        
-
-    '''
     # get input file information
     
     if os.path.isfile(args["input"]):
-    
+
+        # get input file path, name, base name.
         (file_path, filename, basename) = get_file_info(args["input"])
         
-        print("Processing 3d model point cloud file '{} {} {}'...\n".format(file_path, filename, basename))
-        
-        
+        print("Input 3d model point cloud file path: {}; filename: {}\n".format(file_path, filename))
+
         # result path
         result_path = args["output_path"] if args["output_path"] is not None else file_path
 
         result_path = os.path.join(result_path, '')
 
         # print out result path
-        print ("results_folder: {}\n".format(result_path))
+        print ("Output path: {}\n".format(result_path))
 
-        # number of slices for cross section
+        # number of slices for cross-section
         n_plane = args['n_plane']
-        
-        visualize_model = args["visualize_model"]
 
+        slicing_ratio = args["slicing_ratio"]
+
+        adjustment = args["adjustment"]
 
         # start pipeline
-        ########################################################################################3
-
+        ########################################################################################
         model_analysis_pipeline(file_path, filename, basename, result_path)
 
     
     else:
-        
+        # exception handle
         print("The input file is missing or not readable!\n")
 
         print("Exiting the program...")
 
         sys.exit(0)
-    
-    
-    
-    
 
-    
+
+
+
+
+    '''
+    # path to model file 
+    file_path = args["path"]
+
+
+
+    # setting path to model file
+    file_path = args["path"]
+
+    ext = args['filetype'].split(',') if 'filetype' in args else []
+
+    patterns = [os.path.join(file_path, f"*.{p}") for p in ext]
+
+    model_List = [f for fs in [glob.glob(pattern) for pattern in patterns] for f in fs]
+
+
+
+    # load input model files
+
+    if len(model_List) > 0:
+
+        print("Model files in input folder: '{}'\n".format(model_List))
+
+
+
+    else:
+        print("3D model file does not exist")
+        sys.exit()
+
+
+    '''
     
     '''
     #loop execute

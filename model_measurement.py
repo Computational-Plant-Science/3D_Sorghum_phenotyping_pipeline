@@ -9,7 +9,7 @@ Author-email: suxingliu@gmail.com
 
 USAGE:
 
-    python3 model_measurement.py -i ~/example/test.ply  -o ~/example/ -n 5 -v 0
+    python3 model_measurement.py -i ~/example/test.ply  -o ~/example/ --n_plane 5
     
 INPUT:
 
@@ -22,74 +22,38 @@ OUTPUT:
 PARAMETERS:
     ("-i", "--input", dest="input", required=True, type=str, help="full path to 3D model file")
     ("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
-    ("-n", "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
-    ("-v", "--visualize_model", dest = "visualize_model", required = False, type = int, default = 0, help = "Display model or not, default not display")
+    ("--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
+    ("--visualize", dest = "visualize", required = False, type = int, default = 0, help = "Display model or not, default not display")
 
 """
 #!/usr/bin/env python
 
 
-
-import math
-
-# import the necessary packages
-from plyfile import PlyData, PlyElement
-import numpy as np 
-from numpy import interp
-
-from sklearn import preprocessing
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.cluster import KMeans
-from operator import itemgetter
-
-from skimage.segmentation import watershed
-from skimage.feature import peak_local_max
-from skimage.morphology import convex_hull_image
-from skimage.measure import regionprops
-
-#from scipy.spatial import KDTree
-from scipy import ndimage
-import random
-import cv2
-
 import glob
+import numpy as np
 import os
 import sys
-import open3d as o3d
-import copy
-import shutil
+import pathlib
 import argparse
 
+import open3d as o3d
+
 import openpyxl
-from openpyxl import Workbook
-from openpyxl import load_workbook
-import csv
-
-from findpeaks import findpeaks
-
-
-from graph_tool.all import *
-import graph_tool.all as gt
 
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import math
-import itertools
-
-#from tabulate import tabulate
-from rdp import rdp
 
 # import warnings filter
 from warnings import simplefilter
 # ignore all future warnings
 simplefilter(action='ignore', category=FutureWarning)
 
-import pathlib
 
 
 
-# generate foloder to store the output results
+# generate folder to store the output results
 def mkdir(path):
     # import module
     import os
@@ -118,7 +82,7 @@ def mkdir(path):
 
 
 
-
+# compute the center coordinates of a 3d point cloud by slicing it into n_plane segments
 def get_pt_sel(Data_array_pt, n_plane):
     
     ####################################################################
@@ -155,12 +119,12 @@ def get_pt_sel(Data_array_pt, n_plane):
         
         #print(Z_pt_sel.shape)
         
-        # initilize the o3d object
+        # initialize the o3d object
         pcd_Z_mask = o3d.geometry.PointCloud()
     
         pcd_Z_mask.points = o3d.utility.Vector3dVector(Z_pt_sel)
         
-        # get the model center postion
+        # get the model center position
         model_center = pcd_Z_mask.get_center()
 
         pt_plane.append(pcd_Z_mask)
@@ -172,7 +136,7 @@ def get_pt_sel(Data_array_pt, n_plane):
     
     
 
-# compute dimensions of point cloud and nearest neighbors by KDTree
+# compute dimensions of point cloud
 def get_pt_parameter(pcd, n_paths):
     
     # get convex hull of a point cloud is the smallest convex set that contains all points.
@@ -209,8 +173,7 @@ def get_pt_parameter(pcd, n_paths):
 
     pt_volume = np.pi * ((pt_diameter*0.5) ** 2) * pt_length
 
-    #n_paths = 0
-    
+
     pt_density = n_paths/(pt_diameter_max)**2
 
 
@@ -228,7 +191,7 @@ def get_cmap(n, name = 'hsv'):
 
 
 
-# save point cloud data from numpy array as ply file, open3d compatiable format
+# save point cloud data from numpy array as ply file, compatible format with open3d library
 def write_ply(path, data_numpy_array):
     
     #data_range = 100
@@ -243,7 +206,7 @@ def write_ply(path, data_numpy_array):
      
     pcd.points = o3d.utility.Vector3dVector(data_numpy_array)
     
-    # get the model center postion
+    # get the model center position
     model_center = pcd.get_center()
     
     # geometry points are translated directly to the model_center position
@@ -365,7 +328,7 @@ def analyze_pt(pt_file):
     
     pt_center_arr = np.vstack(pt_plane_center)
     
-
+    # compute simplified center vector angles
     # construct vectors
     start_v = [pt_plane_center[0][0], pt_plane_center[0][1], pt_plane_center[0][2]]
     
@@ -373,9 +336,9 @@ def analyze_pt(pt_file):
     
     #angle_vector = dot_product_angle(start_v, end_v)
     
-    s_angle = dot_product_angle(start_v, end_v)
+    pt_angle = dot_product_angle(start_v, end_v)
     
-    #print(s_angle)
+    #print(pt_angle)
 
 
     
@@ -404,29 +367,15 @@ def analyze_pt(pt_file):
 
     #compute dimensions of point cloud data
     (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density) = get_pt_parameter(pcd, 1)
-    
-    s_diameter_max = pt_diameter_max
-    s_diameter_min = pt_diameter_min
-    s_diameter = pt_diameter
-    s_length = pt_length
-    
-    avg_density = pt_density
-    
-    pt_eccentricity = (pt_diameter_min/pt_diameter_max)
-    
-    avg_volume = pt_volume
-    
+
     print("pt_diameter_max = {} pt_diameter_min = {} pt_diameter = {} pt_length = {} pt_volume = {}\n".format(pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume))
     
 
-
-
-        
     #Visualization pipeline
     ####################################################################
     # The number of points per line
     
-    if visualize_model == 1:
+    if visualize == 1:
     
         from mayavi import mlab
         from tvtk.api import tvtk
@@ -460,20 +409,19 @@ def analyze_pt(pt_file):
 
         mlab.show()
 
-    return s_diameter_max, s_diameter_min, s_diameter, s_length, s_angle, avg_volume
+    return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_volume
+
+
 
 
 # get file information from the file path using python3
 def get_file_info(file_full_path):
     
     p = pathlib.Path(file_full_path)
-
     filename = p.name
-
     basename = p.stem
 
     file_path = p.parent.absolute()
-
     file_path = os.path.join(file_path, '')
 
     return file_path, filename, basename
@@ -530,12 +478,12 @@ if __name__ == '__main__':
 
     # construct the argument and parse the arguments
     ap = argparse.ArgumentParser()
-    #ap.add_argument("-i", "--input", dest="input", required=True, type=str, help="full path to 3D model file")
-    ap.add_argument("-p", "--path", dest = "path", required = True, type = str, help = "path to 3D model file")
-    ap.add_argument("-ft", "--filetype", dest = "filetype", type = str, required = False, default = 'ply', help = "3D model file filetype, default *.ply")
+    ap.add_argument("-i", "--input", dest="input", required=True, type=str, help="full path to 3D model file")
+    #ap.add_argument("-p", "--path", dest = "path", required = True, type = str, help = "path to 3D model file")
+    #ap.add_argument("-ft", "--filetype", dest = "filetype", type = str, required = False, default = 'ply', help = "3D model file filetype, default *.ply")
     ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
-    ap.add_argument("-n", "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
-    ap.add_argument("-v", "--visualize_model", dest = "visualize_model", required = False, type = int, default = 0, help = "Display model or not, default not display")
+    ap.add_argument("--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
+    ap.add_argument("--visualize", dest = "visualize", required = False, type = int, default = 0, help = "Display model or not, default not display")
     args = vars(ap.parse_args())
 
     
@@ -561,7 +509,7 @@ if __name__ == '__main__':
         # number of slices for cross section
         n_plane = args['n_plane']
 
-        visualize_model = args["visualize_model"]
+        visualize = args["visualize"]
 
         # start pipeline
         ########################################################################################3
@@ -602,7 +550,7 @@ if __name__ == '__main__':
     
     n_plane = args['n_plane']
 
-    visualize_model = args["visualize_model"]
+    visualize = args["visualize"]
     
     
     # obtain image file list
@@ -630,7 +578,7 @@ if __name__ == '__main__':
             # number of slices for cross section
             n_plane = args['n_plane']
 
-            visualize_model = args["visualize_model"]
+            visualize = args["visualize"]
 
             # start pipeline
             ########################################################################################3
