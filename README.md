@@ -76,7 +76,7 @@ docker build -t 3d-model-traits -f Dockerfile .
 ```
 2. Download prebuild docker image directly from Docker hub, without building docker image on your local PC 
 ```shell
-docker pull 
+docker pull computationalplantscience/3d_sorghum_phenotyping
 ```
 3. Run the pipeline inside the docker container 
 
@@ -86,13 +86,13 @@ docker run -v /$path_to_your_3D_model:/srv/test -it 3d-model-traits
 
 or 
 
-docker run -v /$path_to_your_3D_model:/srv/test -it 
+docker run -v /$path_to_your_3D_model:/srv/test -it computationalplantscience/3d_sorghum_phenotyping
 
 ```
 
-4. Run the pipeline inside the container
+4. Run the pipeline inside the docker container
 ```shell
-python3 pipeline.py -p /srv/test/ -m $your_3D_model_name.ply
+python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/
 
 ```
   

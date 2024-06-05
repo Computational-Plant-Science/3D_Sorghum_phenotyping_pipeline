@@ -10,15 +10,25 @@ RUN apt update
 RUN DEBIAN_FRONTEND="noninteractive" TZ="America/New_York" apt-get install -y \
     build-essential \
     aptitude \
+    mesa-common-dev \
+    libxrandr-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+    libxi-dev \
     libboost-all-dev \
     python3-setuptools \
     python3-pip \
     python3 \
+    python3-tk \
+    libsm6 \
+    libxext6 \
     cmake-gui \
+    mesa-utils \
     software-properties-common \
-    nano
+    nano \
+    xorg-dev
 
-     
+
 
 RUN pip3 install --upgrade pip && \
     pip3 install numpy \
