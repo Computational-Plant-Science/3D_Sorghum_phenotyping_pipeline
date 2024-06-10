@@ -2,15 +2,15 @@ name: DIRT\3d_sorghum_phenotyping
 author: Suxing Liu
 image: docker://computationalplantscience/3d_sorghum_phenotyping
 public: True
-commands: /opt/code/shim.sh
+commands: /opt/code/shcmd.sh
 doi:
 
 
 input:
-  kind: directory
-  path:
+  kind: files
   filetypes:
     - ply
+
    
 output:
   path:
