@@ -37,7 +37,7 @@ RUN pip3 install --upgrade pip && \
 
 
 
-RUN chmod +x /opt/code/shim.sh 
+RUN chmod +x /opt/code/shcmd.sh
 
 ENV PYTHONPATH=$PYTHONPATH:/opt/code/
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/code/
