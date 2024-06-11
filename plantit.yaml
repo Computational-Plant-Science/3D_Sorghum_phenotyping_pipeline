@@ -5,9 +5,9 @@ public: True
 commands: /opt/code/shcmd.sh
 doi:
 
-
 input:
-  kind: files
+  kind: directory
+  path:
   filetypes:
     - ply
 
