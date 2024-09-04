@@ -432,7 +432,8 @@ def model_alignment(model_file, result_path, adjustment):
     
     
     
-    
+    '''
+    # visualize the result
     ###################################################################
     filter_plane_center = []
     
@@ -520,16 +521,16 @@ def model_alignment(model_file, result_path, adjustment):
     #print(np_points)
     
     colors_filter = [[1, 0, 0] for i in range(n_plane-1)]
-    '''
+    
     # assign different colors for eight points in the bounding box.
-    colors = []
-    cmap = get_cmap(n_plane-1)
+    #colors = []
+    #cmap = get_cmap(n_plane-1)
     
-    for idx in range(n_plane-1):
+    #for idx in range(n_plane-1):
     
-        color_rgb = cmap(idx)[:len(cmap(idx))-1]
-        colors.append(color_rgb)
-    '''
+        #color_rgb = cmap(idx)[:len(cmap(idx))-1]
+        #colors.append(color_rgb)
+    
     
     lines_filter_set = o3d.geometry.LineSet()
     lines_filter_set.points = o3d.utility.Vector3dVector(filter_center_points)
@@ -583,18 +584,6 @@ def model_alignment(model_file, result_path, adjustment):
     vis.get_render_option().point_size = 1
     vis.run()
     
-    
-    '''
-    mat = o3d.visualization.rendering.MaterialRecord()
-    mat.shader = "unlitLine"
-    mat.line_width = 10  # note that this is scaled with respect to pixels,
-    # so will give different results depending on the
-    # scaling values of your system
-    o3d.visualization.draw({
-        "name": "lines",
-        "geometry": lines_plane_set,
-        "material": mat
-    })
     '''
     
     '''

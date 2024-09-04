@@ -84,6 +84,11 @@ def mkdir(path):
 
 
 
+
+
+
+
+
 # compute the center coordinates of a 3d point cloud by slicing it into n_plane segments
 def get_pt_sel_parameter(Data_array_pt, n_plane):
     
@@ -95,9 +100,8 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
     pt_plane = []
     
     
+    # initialize paramters
     pt_plane_center = []
-    
-    #pt_plane_volume = []
     
     pt_plane_diameter = []
     
@@ -105,8 +109,12 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
     
     filter_plane_volume = []
     
-    #filter_rotation_matrix = []
+    filter_plane_eccentricity = []
     
+    filter_plane_bushiness = []
+    
+    
+    # slicing models based number of planes along Z axis
     for idx, x in enumerate(range(n_plane)):
         
         ratio_s = idx/n_plane
@@ -129,7 +137,6 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
         
         Z_pt_sel = Data_array_pt[Z_mask]
         
-
         
         #print(Z_pt_sel.shape)
         
@@ -140,7 +147,7 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
         
         
         # get the diameter of the sliced model 
-        (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density) = get_pt_parameter(pcd_Z_mask)
+        (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_ob_volume) = get_pt_parameter(pcd_Z_mask)
         
         # get the model center position
         model_center = pcd_Z_mask.get_center()
@@ -151,10 +158,9 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
         
         pt_plane_diameter.append(pt_diameter)
         
+        filter_plane_bushiness.append(pt_volume/pt_ob_volume)
         
-        
-        # get the filtered sliced model centers
-        
+        # filter sliced models using sphere with radius and compute parameters
         ################################################################
         # copy current sliced model
         pt_sel_filter = copy.deepcopy(pcd_Z_mask)
@@ -169,44 +175,68 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
 
         # Calculate distances to center, set new points
         distances = np.linalg.norm(points - model_center, axis=1)
+        
         pt_sel_filter.points = o3d.utility.Vector3dVector(points[distances <= radius])
         
+        # filter sliced model
         (filter_diameter_max, filter_diameter_min, filter_diameter, filter_length, filter_volume, filter_density) = get_pt_parameter(pcd_Z_mask)
-                
-                
-        # get OrientedBoundingBox
-        #obb = pt_sel_filter.get_oriented_bounding_box()
         
-        # assign color for OrientedBoundingBox
-        #obb.color = (0, 0, 1)
         
-        #rotation_array = obb.R.tolist()
-        
-        # get the eight points that define the bounding box.
-        #pcd_coord = obb.get_box_points()
-
-        
-        #print("obb.R =  {} \n".format(obb.R))
-
-        #rotation_array = obb.R.tolist()
-
-        #r = R.from_matrix(rotation_array)
-        
-        #orientation_angle = r.as_euler('xyz', degrees=True)
-                   
-        #print("orientation_angle =  {} \n".format(orientation_angle))
-        
-       
         filter_plane_center.append(pt_sel_filter.get_center())
         
         filter_plane_volume.append(filter_volume)
+                
+        #########################################################################
+        # compute eccentricity using oriented bounding box axis
+        
+        # get OrientedBoundingBox
+        obb = pt_sel_filter.get_oriented_bounding_box()
+
+        # assign color for OrientedBoundingBox
+        obb.color = (0, 0, 1)
+
+        # get the eight points that define the bounding box.
+        pcd_coord = obb.get_box_points()
+
+        #print(obb.get_box_points())
+
+        #pcd_coord.color = (1, 0, 0)
+
+        # From Open3D to numpy array
+        np_points = np.asarray(pcd_coord)
+
+        # create Open3D format for points 
+        #pcd_coord = o3d.geometry.PointCloud()
+        #pcd_coord.points = o3d.utility.Vector3dVector(np_points)
+    
+        # check the length of the joint 3 vector in the bounding box to estimate the orientation of model
+        list_dis = [np.linalg.norm(np_points[0] - np_points[1]), np.linalg.norm(np_points[0] - np_points[2]), np.linalg.norm(np_points[0] - np_points[3])]
+        
+        #print("list_dis =  {} \n".format(list_dis))
+        
+        filter_plane_eccentricity.append(min(list_dis[0],list_dis[1])/max(list_dis[0],list_dis[1]))
+        
+        #print("filter_plane_eccentricity =  {} \n".format(filter_plane_eccentricity))
+        
+        # get rotation matrix
+        #rotation_array = obb.R.tolist()
+        # get the eight points that define the bounding box.
+        #pcd_coord = obb.get_box_points()
+        #print("obb.R =  {} \n".format(obb.R))
+        #rotation_array = obb.R.tolist()
+        #r = R.from_matrix(rotation_array)
+        #orientation_angle = r.as_euler('xyz', degrees=True)
+        #print("orientation_angle =  {} \n".format(orientation_angle))
+        
+        
+
         
         ################################################################
         
         #pt_plane_volume.append(pt_volume)
         
 
-    return pt_plane, pt_plane_center, pt_plane_diameter, filter_plane_center, filter_plane_volume
+    return pt_plane, pt_plane_center, pt_plane_diameter, filter_plane_center, filter_plane_volume, filter_plane_eccentricity, filter_plane_bushiness
     
 
     
@@ -215,7 +245,7 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
 def get_pt_parameter(pcd):
     
     # get convex hull of a point cloud is the smallest convex set that contains all points.
-    #hull, _ = pcd.compute_convex_hull()
+    hull, _ = pcd.compute_convex_hull()
     #hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
     #hull_ls.paint_uniform_color((1, 0, 0))
     
@@ -246,12 +276,16 @@ def get_pt_parameter(pcd):
 
     pt_length = (aabb_extent[2])
 
-    pt_volume = np.pi * ((pt_diameter*0.5) ** 2) * pt_length
+    # compute as cylinder
+    #pt_volume = np.pi * ((pt_diameter*0.5) ** 2) * pt_length
+    
+    # compute as convexhull volume
+    pt_volume = hull.get_volume()
+    
+    # oriented bounding box volume
+    pt_ob_volume = pcd.get_oriented_bounding_box().volume()
 
-    pt_density = 1/(pt_diameter_max)**2
-
-
-    return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density
+    return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_ob_volume
     
 
 #colormap mapping
@@ -425,9 +459,10 @@ def analyze_pt(pt_file):
     #Bushiness
 
     #compute dimensions of point cloud data
-    (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density) = get_pt_parameter(pcd)
+    (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_ob_volume) = get_pt_parameter(pcd)
 
     print("pt_diameter_max = {} pt_diameter_min = {} pt_diameter = {} pt_length = {} pt_volume = {}\n".format(pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume))
+    
     
     
     ########################################################################################################3
@@ -435,7 +470,7 @@ def analyze_pt(pt_file):
     print("Using {} planes to scan the model along Z axis...".format(n_plane))
     
      
-    (pt_plane, pt_plane_center, pt_plane_diameter, filter_plane_center, filter_plane_volume) = get_pt_sel_parameter(Data_array_pcloud, n_plane)
+    (pt_plane, pt_plane_center, pt_plane_diameter, filter_plane_center, filter_plane_volume, filter_plane_eccentricity, filter_plane_bushiness) = get_pt_sel_parameter(Data_array_pcloud, n_plane)
     
     #o3d.visualization.draw_geometries(pt_plane)
     
@@ -443,16 +478,16 @@ def analyze_pt(pt_file):
     
     # compute simplified center vector angles
     # construct vectors
-    start_v = [pt_plane_center[0][0], pt_plane_center[0][1], pt_plane_center[0][2]]
-    
-    end_v = [pt_plane_center[0][0] - pt_plane_center[-1][0], pt_plane_center[0][1] - pt_plane_center[-1][1], pt_plane_center[0][2] - pt_plane_center[-1][2]]
-    
-    
-    pt_angle = dot_product_angle(start_v, end_v)
-    
+    #start_v = [pt_plane_center[0][0], pt_plane_center[0][1], pt_plane_center[0][2]]
+    #end_v = [pt_plane_center[0][0] - pt_plane_center[-1][0], pt_plane_center[0][1] - pt_plane_center[-1][1], pt_plane_center[0][2] - pt_plane_center[-1][2]]
+    #pt_angle = dot_product_angle(start_v, end_v)
     #print(pt_angle)
     
+    
+    
+    # initialize parameters
     filter_plane_angle = []
+    
     
     # define unit vector
     v_x = [1,0,0]
@@ -460,7 +495,7 @@ def analyze_pt(pt_file):
     v_z = [0,0,1]
 
 
-    # compute angle for each sliced model
+    # compute side angles for each sliced model
     for idx, f_center in enumerate(filter_plane_center):
         
         if idx > 0:
@@ -487,9 +522,14 @@ def analyze_pt(pt_file):
     print("pt_angle = {}, pt_angle_max = {}, pt_angle_min = {}\n".format(pt_angle, pt_angle_max, pt_angle_min))
     
 
+    # Sum of all volume for each sliced model 
+    sum_volume = sum(filter_plane_volume)
+
+    # average of eccentricity
+    avg_eccentricity = np.mean(filter_plane_eccentricity)
     
-    # replace pt_volume with plane sliced volume sum
-    #pt_plane_volume = 
+    # average of bushiness
+    avg_bushiness = np.mean(filter_plane_bushiness)
 
     #Visualization pipeline
     ####################################################################
@@ -562,10 +602,9 @@ def analyze_pt(pt_file):
 
 
 
-    # use volume sum for each sliced model 
-    sum_volume = sum(filter_plane_volume)
+
     
-    return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, sum_volume
+    return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, sum_volume, avg_eccentricity, avg_bushiness
 
 
 
@@ -611,6 +650,8 @@ def write_output(trait_file, trait_sum):
         sheet.cell(row = 1, column = 6).value = 'root system angle max'
         sheet.cell(row = 1, column = 7).value = 'root system angle min'
         sheet.cell(row = 1, column = 8).value = 'root system volume'
+        sheet.cell(row = 1, column = 9).value = 'root system eccentricity'
+        sheet.cell(row = 1, column = 10).value = 'root system bushiness'
 
        
     for row in trait_sum:
@@ -671,12 +712,12 @@ if __name__ == '__main__':
         # start pipeline
         ########################################################################################3
         # compute parameters
-        (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, pt_volume) = analyze_pt(input_file)
+        (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, pt_volume, avg_eccentricity, avg_bushiness) = analyze_pt(input_file)
         
         # save result as an excel file
         trait_sum = []
 
-        trait_sum.append([pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, pt_volume])
+        trait_sum.append([pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, pt_volume, avg_eccentricity, avg_bushiness])
 
         trait_file = (result_path + basename + '_trait.xlsx')
 
