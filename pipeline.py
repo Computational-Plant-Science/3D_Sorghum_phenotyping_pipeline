@@ -75,7 +75,7 @@ def execute_script(cmd_line):
 def model_analysis_pipeline(file_path, filename, basename, result_path):
 
     
-    # step 1  python3 /opt/code/model_measurement.py -i ~/example/test.ply  -o ~/example/ --n_plane 5 --slicing_ratio 0.1 --adjustment 0
+    # step 1  python3 /opt/code/model_alignment.py -i ~/example/test.ply  -o ~/example/result/ --n_plane 5 --slicing_ratio 0.1 --adjustment 0
     print("Step 1: Transform point cloud model to its rotation center and align its upright orientation with Z direction...\n")
 
     format_convert = "python3 /opt/code/model_alignment.py -i " + file_path + filename + " -o " + result_path + " --n_plane " + str(n_plane) + " --slicing_ratio " + str(slicing_ratio) + " --adjustment " + str(adjustment)
@@ -85,7 +85,7 @@ def model_analysis_pipeline(file_path, filename, basename, result_path):
     execute_script(format_convert)
     
     
-    # step 2 python3 /opt/code/model_measurement.py -i ~/example/test.ply  -o ~/example/ --n_plane 5
+    # step 2 python3 /opt/code/model_measurement.py -i ~/example/result/test_aligned.ply  -o ~/example/result/ --n_plane 5
     print("Step 2: Compute 3D traits from the aligned 3D point cloud model...\n")
 
     traits_computation = "python3 /opt/code/model_measurement.py -i " + result_path + basename + "_aligned.ply " + " -o " + result_path + " --n_plane " + str(n_plane)

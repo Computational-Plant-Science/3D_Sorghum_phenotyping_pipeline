@@ -37,6 +37,7 @@ import pathlib
 import argparse
 
 import open3d as o3d
+import copy
 
 import openpyxl
 
@@ -82,8 +83,9 @@ def mkdir(path):
 
 
 
+
 # compute the center coordinates of a 3d point cloud by slicing it into n_plane segments
-def get_pt_sel(Data_array_pt, n_plane):
+def get_pt_sel_parameter(Data_array_pt, n_plane):
     
     ####################################################################
     
@@ -94,6 +96,16 @@ def get_pt_sel(Data_array_pt, n_plane):
     
     
     pt_plane_center = []
+    
+    #pt_plane_volume = []
+    
+    pt_plane_diameter = []
+    
+    filter_plane_center = []
+    
+    filter_plane_volume = []
+    
+    #filter_rotation_matrix = []
     
     for idx, x in enumerate(range(n_plane)):
         
@@ -107,7 +119,7 @@ def get_pt_sel(Data_array_pt, n_plane):
     
         Z_e = Z_pt_sorted[idx_sel_e]  if idx_sel_e < len(Data_array_pt) else (len(Data_array_pt) - 1)
         
-        # inde xof start plane
+        # index of start plane
         idx_sel_s = int(len(Z_pt_sorted)*ratio_s) 
     
         Z_s = Z_pt_sorted[idx_sel_s]
@@ -117,6 +129,8 @@ def get_pt_sel(Data_array_pt, n_plane):
         
         Z_pt_sel = Data_array_pt[Z_mask]
         
+
+        
         #print(Z_pt_sel.shape)
         
         # initialize the o3d object
@@ -124,25 +138,86 @@ def get_pt_sel(Data_array_pt, n_plane):
     
         pcd_Z_mask.points = o3d.utility.Vector3dVector(Z_pt_sel)
         
+        
+        # get the diameter of the sliced model 
+        (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density) = get_pt_parameter(pcd_Z_mask)
+        
         # get the model center position
         model_center = pcd_Z_mask.get_center()
 
         pt_plane.append(pcd_Z_mask)
         
         pt_plane_center.append(model_center)
+        
+        pt_plane_diameter.append(pt_diameter)
+        
+        
+        
+        # get the filtered sliced model centers
+        
+        ################################################################
+        # copy current sliced model
+        pt_sel_filter = copy.deepcopy(pcd_Z_mask)
+        
+        # get 3d points
+        points = np.asarray(pt_sel_filter.points)
 
-    return pt_plane, pt_plane_center
+        # Sphere center and radius
+        radius = pt_diameter*0.5
+        
+        print("radius =  {} \n".format(radius))
+
+        # Calculate distances to center, set new points
+        distances = np.linalg.norm(points - model_center, axis=1)
+        pt_sel_filter.points = o3d.utility.Vector3dVector(points[distances <= radius])
+        
+        (filter_diameter_max, filter_diameter_min, filter_diameter, filter_length, filter_volume, filter_density) = get_pt_parameter(pcd_Z_mask)
+                
+                
+        # get OrientedBoundingBox
+        #obb = pt_sel_filter.get_oriented_bounding_box()
+        
+        # assign color for OrientedBoundingBox
+        #obb.color = (0, 0, 1)
+        
+        #rotation_array = obb.R.tolist()
+        
+        # get the eight points that define the bounding box.
+        #pcd_coord = obb.get_box_points()
+
+        
+        #print("obb.R =  {} \n".format(obb.R))
+
+        #rotation_array = obb.R.tolist()
+
+        #r = R.from_matrix(rotation_array)
+        
+        #orientation_angle = r.as_euler('xyz', degrees=True)
+                   
+        #print("orientation_angle =  {} \n".format(orientation_angle))
+        
+       
+        filter_plane_center.append(pt_sel_filter.get_center())
+        
+        filter_plane_volume.append(filter_volume)
+        
+        ################################################################
+        
+        #pt_plane_volume.append(pt_volume)
+        
+
+    return pt_plane, pt_plane_center, pt_plane_diameter, filter_plane_center, filter_plane_volume
     
-    
+
     
 
 # compute dimensions of point cloud
-def get_pt_parameter(pcd, n_paths):
+def get_pt_parameter(pcd):
     
     # get convex hull of a point cloud is the smallest convex set that contains all points.
-    hull, _ = pcd.compute_convex_hull()
-    hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
-    hull_ls.paint_uniform_color((1, 0, 0))
+    #hull, _ = pcd.compute_convex_hull()
+    #hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
+    #hull_ls.paint_uniform_color((1, 0, 0))
     
     # get AxisAlignedBoundingBox
     aabb = pcd.get_axis_aligned_bounding_box()
@@ -173,8 +248,7 @@ def get_pt_parameter(pcd, n_paths):
 
     pt_volume = np.pi * ((pt_diameter*0.5) ** 2) * pt_length
 
-
-    pt_density = n_paths/(pt_diameter_max)**2
+    pt_density = 1/(pt_diameter_max)**2
 
 
     return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density
@@ -285,16 +359,16 @@ def dot_product_angle(v1,v2):
         
         angle = np.degrees(arccos)
         
-        #return angle
+        return (90 - angle)
         
-    
+    '''
     if angle > 0 and angle < 45:
         return (90 - angle)
     elif angle < 90:
         return angle
     else:
         return (180- angle)
-
+    '''
 
 
 # Traits analysis for the input 3D model
@@ -320,26 +394,6 @@ def analyze_pt(pt_file):
 
     #print(X.shape, Y.shape, Z.shape)
     
-    print("Using {} planes to scan the model along Z axis...".format(n_plane))
-    
-    (pt_plane, pt_plane_center) = get_pt_sel(Data_array_pcloud, n_plane)
-    
-    #o3d.visualization.draw_geometries(pt_plane)
-    
-    pt_center_arr = np.vstack(pt_plane_center)
-    
-    # compute simplified center vector angles
-    # construct vectors
-    start_v = [pt_plane_center[0][0], pt_plane_center[0][1], pt_plane_center[0][2]]
-    
-    end_v = [pt_plane_center[0][0] - pt_plane_center[-1][0], pt_plane_center[0][1] - pt_plane_center[-1][1], pt_plane_center[0][2] - pt_plane_center[-1][2]]
-    
-    #angle_vector = dot_product_angle(start_v, end_v)
-    
-    pt_angle = dot_product_angle(start_v, end_v)
-    
-    #print(pt_angle)
-
 
     
     #for idx, x in enumerate(range(n_plane)):
@@ -366,15 +420,103 @@ def analyze_pt(pt_file):
     pt_diameter_max = pt_diameter_min = pt_length = pt_diameter = pt_eccentricity = pt_density = 0
 
     #compute dimensions of point cloud data
-    (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density) = get_pt_parameter(pcd, 1)
+    (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density) = get_pt_parameter(pcd)
 
     print("pt_diameter_max = {} pt_diameter_min = {} pt_diameter = {} pt_length = {} pt_volume = {}\n".format(pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume))
     
+    
+    ########################################################################################################3
+    # slicing models using n_plane
+    print("Using {} planes to scan the model along Z axis...".format(n_plane))
+    
+     
+    (pt_plane, pt_plane_center, pt_plane_diameter, filter_plane_center, filter_plane_volume) = get_pt_sel_parameter(Data_array_pcloud, n_plane)
+    
+    #o3d.visualization.draw_geometries(pt_plane)
+    
+    pt_center_arr = np.vstack(pt_plane_center)
+    
+    # compute simplified center vector angles
+    # construct vectors
+    start_v = [pt_plane_center[0][0], pt_plane_center[0][1], pt_plane_center[0][2]]
+    
+    end_v = [pt_plane_center[0][0] - pt_plane_center[-1][0], pt_plane_center[0][1] - pt_plane_center[-1][1], pt_plane_center[0][2] - pt_plane_center[-1][2]]
+    
+    
+    pt_angle = dot_product_angle(start_v, end_v)
+    
+    #print(pt_angle)
+    
+    filter_plane_angle = []
+    
+    # define unit vector
+    v_x = [1,0,0]
+    v_y = [0,1,0]
+    v_z = [0,0,1]
+
+
+    # compute angle for each sliced model
+    for idx, f_center in enumerate(filter_plane_center):
+        
+        if idx > 0:
+            
+            print(idx, f_center)
+            
+            center_vector = [f_center[0] - filter_plane_center[idx-1][0], f_center[1] - filter_plane_center[idx-1][1], f_center[2] - filter_plane_center[idx-1][2]]
+        
+            norm_center_vector = center_vector / np.linalg.norm(center_vector)
+        
+            cur_angle = dot_product_angle(norm_center_vector, v_z)
+            
+            print("cur_angle = {} ...".format(cur_angle))
+    
+            filter_plane_angle.append(cur_angle)
+    
+    
+    pt_angle = np.mean(filter_plane_angle)
+    
+    pt_angle_max = max(filter_plane_angle)
+    
+    pt_angle_min = min(filter_plane_angle)
+    
+    print("pt_angle = {}, pt_angle_max = {}, pt_angle_min = {}\n".format(pt_angle, pt_angle_max, pt_angle_min))
+    
+    # Visualization of center curve
+    ####################################################################
+    filter_center_points = np.vstack(filter_plane_center)
+    
+    filter_center_line = []
+    
+    for i in range(n_plane):
+        
+        if i+1 < n_plane:
+            filter_center_line.append([i, i+1])
+
+    
+    colors_filter = [[1, 0, 0] for i in range(n_plane-1)]
+
+    
+    lines_filter_set = o3d.geometry.LineSet()
+    lines_filter_set.points = o3d.utility.Vector3dVector(filter_center_points)
+    lines_filter_set.lines = o3d.utility.Vector2iVector(filter_center_line)
+    lines_filter_set.colors = o3d.utility.Vector3dVector(colors_filter)
+    
+    
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.add_geometry(lines_filter_set)
+    vis.add_geometry(pcd)
+    vis.get_render_option().line_width = 5
+    vis.get_render_option().point_size = 1
+    vis.run()
+    
+    # replace pt_volume with plane sliced volume sum
+    #pt_plane_volume = 
 
     #Visualization pipeline
     ####################################################################
     # The number of points per line
-    
+    '''
     if visualize == 1:
     
         from mayavi import mlab
@@ -408,8 +550,11 @@ def analyze_pt(pt_file):
         pts = mlab.plot3d(pt_center_arr[:,0], pt_center_arr[:,1], pt_center_arr[:,2], tube_radius = 0.025, color = (0,1,0))
 
         mlab.show()
-
-    return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_volume
+    '''
+    
+    sum_volume = sum(filter_plane_volume)
+    
+    return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, sum_volume
 
 
 
@@ -449,13 +594,14 @@ def write_output(trait_file, trait_sum):
         
         sheet.cell(row = 1, column = 1).value = 'root system diameter max'
         sheet.cell(row = 1, column = 2).value = 'root system diameter min'
-        sheet.cell(row = 1, column = 3).value = 'root system average diameter'
+        sheet.cell(row = 1, column = 3).value = 'root system diameter'
         sheet.cell(row = 1, column = 4).value = 'root system length'
-        sheet.cell(row = 1, column = 5).value = 'root system center angle'
-        sheet.cell(row = 1, column = 6).value = 'root system volume'
+        sheet.cell(row = 1, column = 5).value = 'root system angle'
+        sheet.cell(row = 1, column = 6).value = 'root system angle max'
+        sheet.cell(row = 1, column = 7).value = 'root system angle min'
+        sheet.cell(row = 1, column = 8).value = 'root system volume'
 
-        
-        
+       
     for row in trait_sum:
         sheet.append(row)
    
@@ -514,12 +660,12 @@ if __name__ == '__main__':
         # start pipeline
         ########################################################################################3
         # compute parameters
-        (s_diameter_max, s_diameter_min, s_diameter, s_length, avg_density, avg_volume) = analyze_pt(input_file)
-
+        (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, pt_volume) = analyze_pt(input_file)
+        
         # save result as an excel file
         trait_sum = []
 
-        trait_sum.append([s_diameter_max, s_diameter_min, s_diameter, s_length, avg_density, avg_volume])
+        trait_sum.append([pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, pt_volume])
 
         trait_file = (result_path + basename + '_trait.xlsx')
 

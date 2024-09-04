@@ -48,7 +48,7 @@ import pathlib
 from matplotlib import pyplot as plt
 import glob
 
-
+from scipy.spatial.transform import Rotation as R
 
 
 # Find the rotation matrix that aligns vec1 to vec2
@@ -109,7 +109,7 @@ def get_file_info(file_full_path):
 
 
 # compute dimensions of point cloud 
-def get_pt_sel_dia(Data_array_pt, n_plane):
+def get_pt_sel_parameter(Data_array_pt, n_plane):
     
     ####################################################################
     
@@ -152,11 +152,14 @@ def get_pt_sel_dia(Data_array_pt, n_plane):
         (pt_diameter_max, pt_diameter_min, pt_diameter) = get_pt_parameter(Z_pt_sel)
         
         #print(Z_pt_sel.shape)
+     
         
         # initilize the o3d object
         pcd_Z_mask = o3d.geometry.PointCloud()
     
         pcd_Z_mask.points = o3d.utility.Vector3dVector(Z_pt_sel)
+        
+        
         
         # get the model center postion
         model_center = pcd_Z_mask.get_center()
@@ -166,6 +169,7 @@ def get_pt_sel_dia(Data_array_pt, n_plane):
         pt_plane_center.append(model_center)
         
         pt_plane_diameter.append(pt_diameter)
+        
 
     return pt_plane, pt_plane_center, pt_plane_diameter
 
@@ -223,6 +227,16 @@ def get_pt_parameter(Data_array_pt):
         
     return pt_diameter_max, pt_diameter_min, pt_diameter
     
+
+
+def display_inlier_outlier(cloud, ind, obb):
+    inlier_cloud = cloud.select_by_index(ind)
+    outlier_cloud = cloud.select_by_index(ind, invert=True)
+
+    print("Showing outliers (red) and inliers (gray): ")
+    outlier_cloud.paint_uniform_color([1, 0, 0])
+    inlier_cloud.paint_uniform_color([0.8, 0.8, 0.8])
+    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud, obb])
     
 
     
@@ -234,7 +248,7 @@ def model_alignment(model_file, result_path, adjustment):
     pcd = o3d.io.read_point_cloud(model_file)
     
     #print(np.asarray(pcd.points))
-    #o3d.visualization.draw_geometries([pcd_sel])
+    #o3d.visualization.draw_geometries([pcd])
 
 
     # copy original point cloud for rotation
@@ -283,6 +297,8 @@ def model_alignment(model_file, result_path, adjustment):
     pcd_coord = o3d.geometry.PointCloud()
     pcd_coord.points = o3d.utility.Vector3dVector(np_points)
     
+    
+    
     '''
     # assign different colors for eight points in the bounding box.
     colors = []
@@ -295,6 +311,9 @@ def model_alignment(model_file, result_path, adjustment):
 
     pcd_coord.colors = o3d.utility.Vector3dVector(colors)
     '''
+
+    #o3d.visualization.draw_geometries([pcd_r, obb, pcd_coord])
+
 
 
     # check the length of the joint 3 vector in the bounding box to estimate the orientation of model
@@ -332,7 +351,7 @@ def model_alignment(model_file, result_path, adjustment):
     # estimate the orientation of 3d model using sliced diameters
     print("Using {} planes to scan the model along Z axis...".format(n_plane))
     
-    (pt_plane, pt_plane_center, pt_plane_diameter) = get_pt_sel_dia(np_points, n_plane)
+    (pt_plane, pt_plane_center, pt_plane_diameter) = get_pt_sel_parameter(np_points, n_plane)
     
     print("pt_plane_diameter =  {} \n".format(pt_plane_diameter))
     '''
@@ -407,13 +426,176 @@ def model_alignment(model_file, result_path, adjustment):
     
     # estimate the orientation of 3d model using sliced diameters
 
-    (pt_plane, pt_plane_center, pt_plane_diameter) = get_pt_sel_dia(np.asarray(pcd_r.points), n_plane)
+    (pt_plane, pt_plane_center, pt_plane_diameter) = get_pt_sel_parameter(np.asarray(pcd_r.points), n_plane)
     
     print("pt_plane_diameter =  {} \n".format(pt_plane_diameter))
     
     
-    # return aligned model file
-    return pcd_r
+    
+    
+    ###################################################################
+    filter_plane_center = []
+    
+    for (pt_sel, model_center, dia_value) in zip(pt_plane, pt_plane_center, pt_plane_diameter):
+        
+        
+        pt_sel_filter = copy.deepcopy(pt_sel)
+        
+        # get OrientedBoundingBox
+        #obb = pt_sel.get_oriented_bounding_box()
+        
+        # assign color for OrientedBoundingBox
+        #obb.color = (0, 0, 1)
+        
+        # get the eight points that define the bounding box.
+        #pcd_coord = obb.get_box_points()
+        
+        # get the model center postion
+
+        points = np.asarray(pt_sel_filter.points)
+
+        # Sphere center and radius
+        radius = dia_value*0.5
+        
+        print("radius =  {} \n".format(radius))
+
+        # Calculate distances to center, set new points
+        distances = np.linalg.norm(points - model_center, axis=1)
+        pt_sel_filter.points = o3d.utility.Vector3dVector(points[distances <= radius])
+        
+        pt_sel_filter.paint_uniform_color([1, 0, 0])
+        pt_sel.paint_uniform_color([0.8, 0.8, 0.8])
+
+        #display_inlier_outlier(pt_sel, ind, obb)
+        
+        obb = pt_sel_filter.get_oriented_bounding_box()
+        
+        # assign color for OrientedBoundingBox
+        obb.color = (0, 0, 1)
+        
+        print("obb.R =  {} \n".format(obb.R))
+        
+        #rotation_array = obb.R
+        
+        #print(type(rotation_array))
+        
+        #print(rotation_array.shape)
+        
+
+        rotation_array = obb.R.tolist()
+
+        r = R.from_matrix(rotation_array)
+        
+        orientation_angle = r.as_euler('xyz', degrees=True)
+                   
+        print("orientation_angle =  {} \n".format(orientation_angle))
+        
+        #axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size = 0.5, origin = model_center)
+        
+        #o3d.visualization.draw_geometries([pt_sel, pt_sel_filter, obb, axis])
+        
+        # get the model center postion
+       
+        filter_plane_center.append(pt_sel_filter.get_center())
+    
+    
+    
+    #print("length of pt_plane_center =  {} \n".format(len(pt_plane_center)))
+    
+    ####################################################################
+    filter_center_points = np.vstack(filter_plane_center)
+    
+    filter_center_line = []
+    
+    for i in range(n_plane):
+        
+        if i+1 < n_plane:
+            filter_center_line.append([i, i+1])
+    
+    
+    print(filter_center_line)
+    
+    #plane_center_line = [[0, 1], [1, 2], [2, 3], [3, 4]]
+    
+    #print(np_points)
+    
+    colors_filter = [[1, 0, 0] for i in range(n_plane-1)]
+    '''
+    # assign different colors for eight points in the bounding box.
+    colors = []
+    cmap = get_cmap(n_plane-1)
+    
+    for idx in range(n_plane-1):
+    
+        color_rgb = cmap(idx)[:len(cmap(idx))-1]
+        colors.append(color_rgb)
+    '''
+    
+    lines_filter_set = o3d.geometry.LineSet()
+    lines_filter_set.points = o3d.utility.Vector3dVector(filter_center_points)
+    lines_filter_set.lines = o3d.utility.Vector2iVector(filter_center_line)
+    lines_filter_set.colors = o3d.utility.Vector3dVector(colors_filter)
+    
+    
+    
+    #####################################################################
+    plane_center_points = np.vstack(pt_plane_center)
+    
+    plane_center_line = []
+    
+    for i in range(n_plane):
+        
+        if i+1 < n_plane:
+            plane_center_line.append([i, i+1])
+    
+    
+    print(plane_center_line)
+    
+    #plane_center_line = [[0, 1], [1, 2], [2, 3], [3, 4]]
+    
+    #print(np_points)
+    
+    #colors = [[0, 1, 0] for i in range(len(plane_center_line))]
+    
+    # assign different colors for eight points in the bounding box.
+    colors = []
+    cmap = get_cmap(n_plane-1)
+    
+    for idx in range(n_plane-1):
+    
+        color_rgb = cmap(idx)[:len(cmap(idx))-1]
+        colors.append(color_rgb)
+
+    
+    lines_plane_set = o3d.geometry.LineSet()
+    lines_plane_set.points = o3d.utility.Vector3dVector(plane_center_points)
+    lines_plane_set.lines = o3d.utility.Vector2iVector(plane_center_line)
+    lines_plane_set.colors = o3d.utility.Vector3dVector(colors)
+    
+    
+    
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.add_geometry(lines_plane_set)
+    vis.add_geometry(lines_filter_set)
+    vis.add_geometry(pcd_r)
+    vis.get_render_option().line_width = 5
+    vis.get_render_option().point_size = 1
+    vis.run()
+    
+    
+    '''
+    mat = o3d.visualization.rendering.MaterialRecord()
+    mat.shader = "unlitLine"
+    mat.line_width = 10  # note that this is scaled with respect to pixels,
+    # so will give different results depending on the
+    # scaling values of your system
+    o3d.visualization.draw({
+        "name": "lines",
+        "geometry": lines_plane_set,
+        "material": mat
+    })
+    '''
     
     '''
     ##########################################################################################
@@ -428,7 +610,7 @@ def model_alignment(model_file, result_path, adjustment):
     
     center_pts = np.asarray(center_pts)
     
-    #print(center_vector)
+    print(center_pts)
     
     
     
@@ -456,6 +638,8 @@ def model_alignment(model_file, result_path, adjustment):
     line_set_center.colors = o3d.utility.Vector3dVector(colors)
     
     
+
+    
     # Creating a mesh of the XYZ axes Cartesian coordinates frame.
     # This mesh will show the directions in which the X, Y & Z-axes point,
     # and can be overlaid on the 3D mesh to visualize its orientation in the Euclidean space.
@@ -469,15 +653,18 @@ def model_alignment(model_file, result_path, adjustment):
     vis.add_geometry(line_set)
     vis.add_geometry(line_set_center)
     vis.add_geometry(pcd_coord)
+    vis.add_geometry(pcd)
     vis.add_geometry(coord_frame)
     vis.get_render_option().line_width = 5
     vis.get_render_option().point_size = 10
     vis.run()
+    #vis.destroy_window()
     ###################################################################################################
     '''
     
 
-    
+    # return aligned model file
+    return pcd_r
 
 
     
@@ -637,7 +824,7 @@ if __name__ == '__main__':
 
             print("The input file is missing or not readable!\n")
 
-            print("Exiting the program...")
+            print("Exiting the program...") 
 
             sys.exit(0)
     
