@@ -417,7 +417,12 @@ def analyze_pt(pt_file):
     
 
     #initialize parameters
-    pt_diameter_max = pt_diameter_min = pt_length = pt_diameter = pt_eccentricity = pt_density = 0
+    pt_diameter_max = pt_diameter_min = pt_length = pt_diameter = pt_eccentricity = pt_density = pt_angle = pt_angle_max = pt_angle_min = sum_volume = 0
+    
+    
+    #Eccentricity
+    
+    #Bushiness
 
     #compute dimensions of point cloud data
     (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_density) = get_pt_parameter(pcd)
@@ -460,7 +465,7 @@ def analyze_pt(pt_file):
         
         if idx > 0:
             
-            print(idx, f_center)
+            #print(idx, f_center)
             
             center_vector = [f_center[0] - filter_plane_center[idx-1][0], f_center[1] - filter_plane_center[idx-1][1], f_center[2] - filter_plane_center[idx-1][2]]
         
@@ -468,7 +473,7 @@ def analyze_pt(pt_file):
         
             cur_angle = dot_product_angle(norm_center_vector, v_z)
             
-            print("cur_angle = {} ...".format(cur_angle))
+            #print("cur_angle = {} ...".format(cur_angle))
     
             filter_plane_angle.append(cur_angle)
     
@@ -481,34 +486,7 @@ def analyze_pt(pt_file):
     
     print("pt_angle = {}, pt_angle_max = {}, pt_angle_min = {}\n".format(pt_angle, pt_angle_max, pt_angle_min))
     
-    # Visualization of center curve
-    ####################################################################
-    filter_center_points = np.vstack(filter_plane_center)
-    
-    filter_center_line = []
-    
-    for i in range(n_plane):
-        
-        if i+1 < n_plane:
-            filter_center_line.append([i, i+1])
 
-    
-    colors_filter = [[1, 0, 0] for i in range(n_plane-1)]
-
-    
-    lines_filter_set = o3d.geometry.LineSet()
-    lines_filter_set.points = o3d.utility.Vector3dVector(filter_center_points)
-    lines_filter_set.lines = o3d.utility.Vector2iVector(filter_center_line)
-    lines_filter_set.colors = o3d.utility.Vector3dVector(colors_filter)
-    
-    
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    vis.add_geometry(lines_filter_set)
-    vis.add_geometry(pcd)
-    vis.get_render_option().line_width = 5
-    vis.get_render_option().point_size = 1
-    vis.run()
     
     # replace pt_volume with plane sliced volume sum
     #pt_plane_volume = 
@@ -516,9 +494,10 @@ def analyze_pt(pt_file):
     #Visualization pipeline
     ####################################################################
     # The number of points per line
-    '''
+    
     if visualize == 1:
     
+        '''
         from mayavi import mlab
         from tvtk.api import tvtk
         
@@ -550,8 +529,40 @@ def analyze_pt(pt_file):
         pts = mlab.plot3d(pt_center_arr[:,0], pt_center_arr[:,1], pt_center_arr[:,2], tube_radius = 0.025, color = (0,1,0))
 
         mlab.show()
-    '''
+        '''
     
+        # Visualization of center curve
+        ####################################################################
+        filter_center_points = np.vstack(filter_plane_center)
+        
+        filter_center_line = []
+        
+        for i in range(n_plane):
+            
+            if i+1 < n_plane:
+                filter_center_line.append([i, i+1])
+
+        
+        colors_filter = [[1, 0, 0] for i in range(n_plane-1)]
+
+        
+        lines_filter_set = o3d.geometry.LineSet()
+        lines_filter_set.points = o3d.utility.Vector3dVector(filter_center_points)
+        lines_filter_set.lines = o3d.utility.Vector2iVector(filter_center_line)
+        lines_filter_set.colors = o3d.utility.Vector3dVector(colors_filter)
+        
+        
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
+        vis.add_geometry(lines_filter_set)
+        vis.add_geometry(pcd)
+        vis.get_render_option().line_width = 5
+        vis.get_render_option().point_size = 1
+        vis.run()
+
+
+
+    # use volume sum for each sliced model 
     sum_volume = sum(filter_plane_volume)
     
     return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, sum_volume
