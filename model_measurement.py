@@ -9,7 +9,7 @@ Author-email: suxingliu@gmail.com
 
 USAGE:
 
-    python3 model_measurement.py -i ~/example/test.ply  -o ~/example/ --n_plane 5
+    python3 model_measurement.py -i ~/example/test.ply  -o ~/example/ --n_plane 10
     
 INPUT:
 
@@ -680,7 +680,7 @@ if __name__ == '__main__':
     #ap.add_argument("-p", "--path", dest = "path", required = True, type = str, help = "path to 3D model file")
     #ap.add_argument("-ft", "--filetype", dest = "filetype", type = str, required = False, default = 'ply', help = "3D model file filetype, default *.ply")
     ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
-    ap.add_argument("--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
+    ap.add_argument("--n_plane", dest = "n_plane", type = int, required = False, default = 10,  help = "Number of planes to segment the 3d model along Z direction")
     ap.add_argument("--visualize", dest = "visualize", required = False, type = int, default = 0, help = "Display model or not, default not display")
     args = vars(ap.parse_args())
 

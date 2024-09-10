@@ -1,7 +1,7 @@
 """
 Version: 1.5
 
-Summary: alignment 3d model to Z axis and translate it to its center.
+Summary: Statistical outlier removal for 3d point cloud
 
 Author: suxing liu
 
@@ -9,7 +9,7 @@ Author-email: suxingliu@gmail.com
 
 USAGE
 
-python3 model_clean_3D.py -p ~/example/ -m test.ply -r 0.1
+    python3 model_clean_3D.py -p ~/example/ -m test.ply -r 0.1
 
 
 argument:
@@ -164,21 +164,21 @@ def format_converter(current_path, model_name):
     pcd_r.translate(-1*(model_center))
     
     
-    # Statistical oulier removal
+    # Statistical outlier removal
     #nb_neighbors, which specifies how many neighbors are taken into account in order to calculate the average distance for a given point.
     #std_ratio, which allows setting the threshold level based on the standard deviation of the average distances across the point cloud. 
     #The lower this number the more aggressive the filter will be.
     
 
     # visualize the oulier removal point cloud
-    print("Statistical oulier removal\n")
-    cl, ind = pcd_r.remove_statistical_outlier(nb_neighbors = 100, std_ratio = 0.00001)
+    print("Statistical outlier removal\n")
+    cl, ind = pcd_r.remove_statistical_outlier(nb_neighbors = 100, std_ratio = 0.001)
     #display_inlier_outlier(pcd_r, ind)
     
     
 
     
-    #print("Statistical oulier removal\n")
+    #print("Statistical outlier removal\n")
     #cl, ind = pcd_r.remove_statistical_outlier(nb_neighbors = 40, std_ratio = 0.00001)
     #display_inlier_outlier(pcd_r, ind)
    

@@ -1,7 +1,7 @@
 """
 Version: 1.5
 
-Summary: Align 3D model to its Z axis and translate it to its center.
+Summary: Align 3D model to its Z axis and translate it to its center. 
 
 Author: Suxing liu
 
@@ -330,6 +330,8 @@ def model_alignment(model_file, result_path, adjustment):
     if adjustment == 1:
         print("Manual adjustment was applied!")
         idx_sorted[0] = 1
+        
+
 
     # estimate the orientation 
     if idx_sorted[0] == 0:
@@ -372,12 +374,12 @@ def model_alignment(model_file, result_path, adjustment):
     # rotate the model using rotation matrix to align with unit vector Z 
     pcd_r.rotate(R_matrix, center = (0,0,0))
     
-    
-        
+
     # check the botttom and top direction 
     pts_bottom = get_pt_sel(np.asarray(pcd_r.points))
     
     
+
     '''
     ############################################################
     pcd_Z_mask = o3d.geometry.PointCloud()
@@ -403,7 +405,6 @@ def model_alignment(model_file, result_path, adjustment):
 
     
     
-    
     # if model bottom and top need to be fliped  
     if ptb_diameter < pt_diameter*0.6:
         
@@ -422,13 +423,23 @@ def model_alignment(model_file, result_path, adjustment):
         
         # rotate the model using rotation matrix to align with unit vector Z 
         pcd_r.rotate(R_matrix_flip, center = (0,0,0))
+    
+    ######################################################################
+    if adjustment == 1:
+        
+        R_adjust = pcd_r.get_rotation_matrix_from_xyz((np.pi, np.pi/2, 0))
+        
+        #R_adjust = pcd_r.get_rotation_matrix_from_xyz((0, 0, 0))
+        
+        pcd_r.rotate(R_adjust, center = (0,0,0))
+    
         
     
     # estimate the orientation of 3d model using sliced diameters
 
-    (pt_plane, pt_plane_center, pt_plane_diameter) = get_pt_sel_parameter(np.asarray(pcd_r.points), n_plane)
+    #(pt_plane, pt_plane_center, pt_plane_diameter) = get_pt_sel_parameter(np.asarray(pcd_r.points), n_plane)
     
-    print("pt_plane_diameter =  {} \n".format(pt_plane_diameter))
+    #print("pt_plane_diameter =  {} \n".format(pt_plane_diameter))
     
     
     
