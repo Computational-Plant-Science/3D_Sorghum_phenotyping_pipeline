@@ -9,7 +9,7 @@ Author-email: suxingliu@gmail.com
 
 USAGE
 
-    python3 model_clean_3D.py -p ~/example/ -m test.ply -r 0.1
+    python3 model_clean_3D.py -i ~/example/test.ply -o ~/example/result/ --outlier_ratio
 
 
 argument:
@@ -34,7 +34,7 @@ import os
 import sys
 import open3d as o3d
 import copy
-
+import pathlib
 from scipy.spatial.transform import Rotation as Rot
 import math
 
@@ -93,22 +93,28 @@ def rotation_matrix_from_vectors(vec1, vec2):
         return np.eye(3) #cross of all zeros only occurs on identical directions
 
 
-def format_converter(current_path, model_name):
+# get file information from the file path using python3
+def get_file_info(file_full_path):
     
-    model_file = current_path + model_name
+    p = pathlib.Path(file_full_path)
+
+    filename = p.name
+
+    basename = p.stem
+
+    file_path = p.parent.absolute()
+
+    file_path = os.path.join(file_path, '')
+
+    return file_path, filename, basename
+
+
+
+
+
+def format_converter(model_file):
     
-    if os.path.isfile(model_file):
-        print("Converting file format for 3D point cloud model {}...\n".format(model_name))
-    else:
-        print("File not exist")
-        sys.exit()
-    
-        
-    abs_path = os.path.abspath(model_file)
-    filename, file_extension = os.path.splitext(abs_path)
-    base_name = os.path.splitext(os.path.basename(filename))[0]
-    
-     
+
     # Pass xyz to Open3D.o3d.geometry.PointCloud 
 
     pcd = o3d.io.read_point_cloud(model_file)
@@ -147,21 +153,21 @@ def format_converter(current_path, model_name):
         
         pcd_sel = pcd
     else:
-        pcd_sel = pcd.select_by_index(np.where(color_array[:, 2] > ratio)[0])
+        pcd_sel = pcd.select_by_index(np.where(color_array[:, 2] > outlier_ratio)[0])
     
     #o3d.visualization.draw_geometries([pcd])
     #o3d.visualization.draw_geometries([pcd_sel])
 
 
     # copy original point cloud for rotation
-    pcd_r = copy.deepcopy(pcd_sel)
+    pcd_cleaned = copy.deepcopy(pcd_sel)
     
     
     # get the model center postion
-    model_center = pcd_r.get_center()
+    model_center = pcd_cleaned.get_center()
     
     # geometry points are translated directly to the model_center position
-    pcd_r.translate(-1*(model_center))
+    pcd_cleaned.translate(-1*(model_center))
     
     
     # Statistical outlier removal
@@ -172,7 +178,7 @@ def format_converter(current_path, model_name):
 
     # visualize the oulier removal point cloud
     print("Statistical outlier removal\n")
-    cl, ind = pcd_r.remove_statistical_outlier(nb_neighbors = 100, std_ratio = 0.001)
+    cl, ind = pcd_cleaned.remove_statistical_outlier(nb_neighbors = 100, std_ratio = 0.001)
     #display_inlier_outlier(pcd_r, ind)
     
     
@@ -183,50 +189,81 @@ def format_converter(current_path, model_name):
     #display_inlier_outlier(pcd_r, ind)
    
     
-    ####################################################################
-    
-    #Save model file as ascii format in ply
-    filename = current_path + base_name + '_cleaned.ply'
-    
-    for i in range(5):
-        #write out point cloud file
-        o3d.io.write_point_cloud(filename, pcd_r, write_ascii = True)
-    
- 
-    
-    # check saved file
-    if os.path.exists(filename):
-        print("Converted 3d model was saved at {0}\n".format(filename))
-        return True
-    else:
-        return False
-        print("Model file converter failed!\n")
-        sys.exit(0)
-    
+
+    return pcd_cleaned
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
     
     
     # construct the argument and parse the arguments
     ap = argparse.ArgumentParser()
-    ap.add_argument("-p", "--path", required = True, help = "path to *.ply model file")
-    ap.add_argument("-m", "--model", required = True, help = "model file name")
-    ap.add_argument("-r", "--ratio", required = False, type = float, default = 0.1, help = "outlier remove ratio")
-    ap.add_argument("-t", "--test", required = False, default = False, help = "if using test setup")
+    ap.add_argument("-i", "--input", dest="input", type=str, required=True, help="full path to 3D model file")
+    ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
+    ap.add_argument("--outlier_ratio", required = False, type = float, default = 0.1, help = "outlier remove ratio")
     args = vars(ap.parse_args())
 
 
-    # setting path to model file 
-    current_path = args["path"]
-    filename = args["model"]
-    ratio = args["ratio"]
-    
-    file_path = current_path + filename
-    
-    #rotation_angle = args["angle"]
 
-    #print ("results_folder: " + current_path)
+     # single input file processing
+    ###############################################################################
+    if os.path.isfile(args["input"]):
 
-    format_converter(current_path, filename)
+        input_file = args["input"]
 
- 
+        (file_path, filename, basename) = get_file_info(input_file)
+
+        print("Compute {} model orientation and aligning models...\n".format(file_path, filename, basename))
+
+        # result path
+        result_path = args["output_path"] if args["output_path"] is not None else file_path
+
+        result_path = os.path.join(result_path, '')
+
+        # print out result path
+        print("results_folder: {}\n".format(result_path))
+        
+        # parameter
+        outlier_ratio = args["outlier_ratio"]
+
+
+        # start pipeline
+        ########################################################################################
+        # model alignment 
+        pcd_cleaned = format_converter(input_file)
+        
+        
+        
+        ####################################################################
+        # write aligned 3d model as ply file format
+        # get file information
+
+        #Save model file as ascii format in ply
+        result_filename = result_path + basename + '_cleaned.ply'
+
+        #write out point cloud file
+        o3d.io.write_point_cloud(result_filename, pcd_cleaned, write_ascii = True)
+
+        # check saved file
+        if os.path.exists(result_filename):
+            print("Converted 3d model was saved at {0}\n".format(result_filename))
+
+        else:
+            print("Model file converter failed!\n")
+            sys.exit(0)
+        
+        
+
+    else:
+
+        print("The input file is missing or not readable!\n")
+
+        print("Exiting the program...")
+
+        sys.exit(0)

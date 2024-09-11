@@ -74,11 +74,20 @@ def execute_script(cmd_line):
 # execute pipeline scripts in order
 def model_analysis_pipeline(file_path, filename, basename, result_path):
 
+
+    # step 0  python3 /opt/code/python3 model_clean_3D.py -i ~/example/sp_test/test.ply -o ~/example/sp_test/results/ --outlier_ratio 0.1
+    print("Step 0: Statistical outlier removal for 3d point cloud...\n")
+
+    format_convert = "python3 /opt/code/model_clean_3D.py -i " + file_path + filename + " -o " + result_path + " --outlier_ratio " + str(outlier_ratio) 
     
+    print(format_convert)
+    
+    execute_script(format_convert)
+        
     # step 1  python3 /opt/code/model_alignment.py -i ~/example/test.ply  -o ~/example/result/ --n_plane 5 --slicing_ratio 0.1 --adjustment 0
     print("Step 1: Transform point cloud model to its rotation center and align its upright orientation with Z direction...\n")
 
-    format_convert = "python3 /opt/code/model_alignment.py -i " + file_path + filename + " -o " + result_path + " --n_plane " + str(n_plane) + " --slicing_ratio " + str(slicing_ratio) + " --adjustment " + str(adjustment)
+    format_convert = "python3 /opt/code/model_alignment.py -i " + result_path + basename + "_cleaned.ply " + " -o " + result_path + " --n_plane " + str(n_plane) + " --slicing_ratio " + str(slicing_ratio) + " --adjustment " + str(adjustment)
     
     print(format_convert)
     
@@ -88,7 +97,7 @@ def model_analysis_pipeline(file_path, filename, basename, result_path):
     # step 2 python3 /opt/code/model_measurement.py -i ~/example/result/test_aligned.ply  -o ~/example/result/ --n_plane 5
     print("Step 2: Compute 3D traits from the aligned 3D point cloud model...\n")
 
-    traits_computation = "python3 /opt/code/model_measurement.py -i " + result_path + basename + "_aligned.ply " + " -o " + result_path + " --n_plane " + str(n_plane)
+    traits_computation = "python3 /opt/code/model_measurement.py -i " + result_path + basename + "_cleaned_aligned.ply " + " -o " + result_path + " --n_plane " + str(n_plane)
     
     print(traits_computation)
     
@@ -182,6 +191,7 @@ if __name__ == '__main__':
     #ap.add_argument("-p", "--path", dest = "path", type = str, required = True, help = "path to 3D model file")
     #ap.add_argument("-ft", "--filetype", dest = "filetype", type = str, required = False, default = 'ply', help = "3D model file filetype, default *.ply")
     ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
+    ap.add_argument("--outlier_ratio", required = False, type = float, default = 0.1, help = "outlier remove ratio")
     ap.add_argument( "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
     ap.add_argument( "--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
     ap.add_argument( "--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
@@ -195,7 +205,7 @@ if __name__ == '__main__':
         # get input file path, name, base name.
         (file_path, filename, basename) = get_file_info(args["input"])
         
-        print("Input 3d model point cloud file path: {}; filename: {}\n".format(file_path, filename))
+        print("Input 3d model point cloud file path: {}, filename: {}\n".format(file_path, filename))
 
         # result path
         result_path = args["output_path"] if args["output_path"] is not None else file_path
@@ -204,6 +214,8 @@ if __name__ == '__main__':
 
         # print out result path
         print ("Output path: {}\n".format(result_path))
+        
+        outlier_ratio = args["outlier_ratio"]
 
         # number of slices for cross-section
         n_plane = args['n_plane']

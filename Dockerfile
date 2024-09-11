@@ -1,3 +1,16 @@
+#Name: Dockerfile
+#Version: 1.0
+#Summary: Docker recipe file for smart pipeline
+#Author: suxing liu
+#Author-email: suxingliu@gmail.com
+#Created: 2024-10-29
+
+#USAGE:
+#docker build -t test_docker -f Dockerfile .
+#docker run -v /input_path:/srv/images -it test_docker
+#cd /opt/code/
+
+
 FROM ubuntu:20.04
 
 LABEL maintainer='Suxing Liu, Wes Bonelli'
@@ -31,8 +44,12 @@ RUN pip3 install --upgrade pip && \
     pytest \
     open3d \
     openpyxl \
+    opencv-python-headless  \
+    pathlib \
     PyYAML \
-    imutils
+    imutils \
+    rembg
+    
 
 
 
@@ -41,5 +58,7 @@ RUN chmod +x /opt/code/shcmd.sh
 
 ENV PYTHONPATH=$PYTHONPATH:/opt/code/
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/code/
+
+
 
 
