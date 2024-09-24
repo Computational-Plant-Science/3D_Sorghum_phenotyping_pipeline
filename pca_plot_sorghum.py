@@ -333,7 +333,7 @@ def pca_analysis(df, file_path):
     ax.set_title('PCA')
     
     
-	# get unique genotype names 
+    # get unique genotype names 
     genotypes = list(set(df['genotype']))
 
     #colors = plt.cm.rainbow(np.linspace(0, 1, len(genotypes)))
@@ -395,7 +395,7 @@ def pca_analysis(df, file_path):
 
 
 # ploty scatter plot, visualize the first two principal components of a PCA, by reducing a dataset of 4 dimensions to 2D.
-def scatter_plot(df):
+def scatter_plot_2d(df):
     
     import plotly.express as px
     from sklearn.decomposition import PCA
@@ -419,7 +419,49 @@ def scatter_plot(df):
     components = pca.fit_transform(X)
 
     fig = px.scatter(components, x=0, y=1, color=df['genotype'])
+    
     fig.show()
+    
+    result_file_path = file_path + '/'  + 'scatter_2d.html'
+    
+    fig.write_html(result_file_path)
+
+
+
+def scatter_plot_3d(df):
+    
+    import plotly.express as px
+    from sklearn.decomposition import PCA
+
+    X = df[['root system diameter max',
+                'root system diameter min',
+                'root system diameter',
+                'root system length',
+                'root system angle',
+                'root system angle max',
+                'root system angle min',
+                'root system volume',
+                'root system eccentricity',
+                'root system bushiness']]
+
+
+    pca = PCA(n_components=3)
+    components = pca.fit_transform(X)
+
+    total_var = pca.explained_variance_ratio_.sum() * 100
+
+    fig = px.scatter_3d(
+        components, x=0, y=1, z=2, color=df['genotype'],
+        title=f'Total Explained Variance: {total_var:.2f}%',
+        labels={'0': 'PC 1', '1': 'PC 2', '2': 'PC 3'}
+    )
+    fig.show()
+    
+    result_file_path = file_path + '/'  + 'scatter_3d.html'
+    
+    fig.write_html(result_file_path)
+
+
 
 
 
@@ -437,7 +479,7 @@ if __name__ == '__main__':
     filename = args["filename"]
     data_file_path = file_path + filename
     
-    result_file_path = file_path + '/'  + 'pca_map.png'
+    #result_file_path = file_path + '/'  + 'pca_map.png'
     
     
     #data_file_path = file_path + 'trait_sum_pca.xlsx'
@@ -504,7 +546,9 @@ if __name__ == '__main__':
     
     pca_analysis(df, file_path)
     
-    scatter_plot(df)
+    scatter_plot_2d(df)
+    
+    scatter_plot_3d(df)
     
     #LDA_analysis(df, file_path)
     
