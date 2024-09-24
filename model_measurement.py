@@ -103,7 +103,13 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
     # initialize paramters
     pt_plane_center = []
     
-    pt_plane_diameter = []
+    pt_plane_diameter_max = []
+    
+    pt_plane_diameter_min = []
+    
+    pt_plane_diameter_avg = []
+    
+
     
     filter_plane_center = []
     
@@ -147,7 +153,9 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
         
         
         # get the diameter of the sliced model 
-        (pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_ob_volume) = get_pt_parameter(pcd_Z_mask)
+        (pt_diameter_max, pt_diameter_min, pt_diameter_avg, pt_length, pt_volume, pt_ob_volume) = get_pt_parameter(pcd_Z_mask)
+        
+        print("Current slice diameter_max = {}, diameter_min = {}, diameter_avg = {}\n".format(pt_diameter_max, pt_diameter_min, pt_diameter_avg))
         
         # get the model center position
         model_center = pcd_Z_mask.get_center()
@@ -156,7 +164,13 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
         
         pt_plane_center.append(model_center)
         
-        pt_plane_diameter.append(pt_diameter)
+        #pt_plane_diameter.append(pt_diameter)
+        
+        pt_plane_diameter_max.append(pt_diameter_max)
+        
+        pt_plane_diameter_min.append(pt_diameter_min)
+        
+        pt_plane_diameter_avg.append(pt_diameter_avg)
         
         filter_plane_bushiness.append(pt_volume/pt_ob_volume)
         
@@ -169,7 +183,7 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
         points = np.asarray(pt_sel_filter.points)
 
         # Sphere center and radius
-        radius = pt_diameter*0.5
+        radius = pt_diameter_avg*0.5
         
         print("radius =  {} \n".format(radius))
 
@@ -236,7 +250,7 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
         #pt_plane_volume.append(pt_volume)
         
 
-    return pt_plane, pt_plane_center, pt_plane_diameter, filter_plane_center, filter_plane_volume, filter_plane_eccentricity, filter_plane_bushiness
+    return pt_plane, pt_plane_center, pt_plane_diameter_max, pt_plane_diameter_min, pt_plane_diameter_avg, filter_plane_center, filter_plane_volume, filter_plane_eccentricity, filter_plane_bushiness
     
 
     
@@ -268,11 +282,13 @@ def get_pt_parameter(pcd):
     
     
     # compute parameters
-    pt_diameter_max = max(aabb_extent[0], aabb_extent[1])
-
+    #pt_diameter_max = max(aabb_extent[0], aabb_extent[1])
+    
+    pt_diameter_max = (math.sqrt(pow(aabb_extent[0],2) + pow(aabb_extent[1],2)) + max(aabb_extent[0], aabb_extent[1])) / 2.0
+    
     pt_diameter_min = min(aabb_extent_half[0], aabb_extent_half[1])
     
-    pt_diameter = (pt_diameter_max + pt_diameter_min)*0.5
+    pt_diameter_avg = (pt_diameter_max + pt_diameter_min)*0.5
 
     pt_length = (aabb_extent[2])
 
@@ -285,7 +301,10 @@ def get_pt_parameter(pcd):
     # oriented bounding box volume
     pt_ob_volume = pcd.get_oriented_bounding_box().volume()
 
-    return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_volume, pt_ob_volume
+    return pt_diameter_max, pt_diameter_min, pt_diameter_avg, pt_length, pt_volume, pt_ob_volume
+    
+    
+    
     
 
 #colormap mapping
@@ -470,7 +489,7 @@ def analyze_pt(pt_file):
     print("Using {} planes to scan the model along Z axis...".format(n_plane))
     
      
-    (pt_plane, pt_plane_center, pt_plane_diameter, filter_plane_center, filter_plane_volume, filter_plane_eccentricity, filter_plane_bushiness) = get_pt_sel_parameter(Data_array_pcloud, n_plane)
+    (pt_plane, pt_plane_center, pt_plane_diameter_max, pt_plane_diameter_min, pt_plane_diameter_avg, filter_plane_center, filter_plane_volume, filter_plane_eccentricity, filter_plane_bushiness) = get_pt_sel_parameter(Data_array_pcloud, n_plane)
     
     #o3d.visualization.draw_geometries(pt_plane)
     
