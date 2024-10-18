@@ -9,9 +9,9 @@ Author-email: suxingliu@gmail.com
 
 USAGE:
 
-    Default parameter mode: python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/
+    Default parameters: python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/
 
-    User define parameter mode: python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/ --n_plane 5 --slicing_ratio 0.1 --adjustment 0
+    User define parameters: python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/ --n_plane 5 --slicing_ratio 0.1 --adjustment 0
 
 
 
@@ -78,7 +78,7 @@ def model_analysis_pipeline(file_path, filename, basename, result_path):
     # step 0  python3 /opt/code/python3 model_clean_3D.py -i ~/example/sp_test/test.ply -o ~/example/sp_test/results/ --outlier_ratio 0.1
     print("Step 0: Statistical outlier removal for 3d point cloud...\n")
 
-    format_convert = "python3 /opt/code/model_clean_3D.py -i " + file_path + filename + " -o " + result_path + " --outlier_ratio " + str(outlier_ratio) 
+    format_convert = "python3 /opt/code/model_clean_3D.py -i " + file_path + filename + " -o " + result_path + " --std_ratio " + str(std_ratio) 
     
     print(format_convert)
     
@@ -188,10 +188,8 @@ if __name__ == '__main__':
     # construct the argument and parse the arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", dest = "input", type = str, required = True, help = "full path to 3D model file")
-    #ap.add_argument("-p", "--path", dest = "path", type = str, required = True, help = "path to 3D model file")
-    #ap.add_argument("-ft", "--filetype", dest = "filetype", type = str, required = False, default = 'ply', help = "3D model file filetype, default *.ply")
     ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
-    ap.add_argument("--outlier_ratio", required = False, type = float, default = 0.1, help = "outlier remove ratio")
+    ap.add_argument("--std_ratio", required = False, type = float, default = 5.0, help = "outlier remove ratio, small number = aggresive")
     ap.add_argument( "--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
     ap.add_argument( "--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
     ap.add_argument( "--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
@@ -215,7 +213,7 @@ if __name__ == '__main__':
         # print out result path
         print ("Output path: {}\n".format(result_path))
         
-        outlier_ratio = args["outlier_ratio"]
+        std_ratio = args["std_ratio"]
 
         # number of slices for cross-section
         n_plane = args['n_plane']

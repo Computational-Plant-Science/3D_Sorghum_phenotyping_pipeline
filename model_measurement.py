@@ -621,8 +621,6 @@ def analyze_pt(pt_file):
 
 
 
-
-    
     return pt_diameter_max, pt_diameter_min, pt_diameter, pt_length, pt_angle, pt_angle_max, pt_angle_min, sum_volume, avg_eccentricity, avg_bushiness
 
 

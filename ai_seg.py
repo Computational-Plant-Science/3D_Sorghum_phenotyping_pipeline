@@ -47,6 +47,10 @@ import cv2
 import imutils
 import openpyxl
 
+
+from sklearn.cluster import KMeans
+
+
 from rembg import remove
 
 import time
@@ -169,7 +173,178 @@ def marker_detect(img_rgb):
     return img_overlay, avg_width, pixel_cm_ratio
     
     
+
+# segment foreground object using color clustering method
+def color_cluster_seg(image, args_colorspace, args_channels, args_num_clusters):
     
+
+    #image_LAB = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    
+    #cl = ColorLabeler()
+    
+    # Change image color space, if necessary.
+    colorSpace = args_colorspace.lower()
+
+    if colorSpace == 'hsv':
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        
+    elif colorSpace == 'ycrcb' or colorSpace == 'ycc':
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        
+    elif colorSpace == 'lab':
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        
+    else:
+        colorSpace = 'bgr'  # set for file naming purposes
+
+    # Keep only the selected channels for K-means clustering.
+    if args_channels != 'all':
+        channels = cv2.split(image)
+        channelIndices = []
+        for char in args_channels:
+            channelIndices.append(int(char))
+        image = image[:,:,channelIndices]
+        if len(image.shape) == 2:
+            image.reshape(image.shape[0], image.shape[1], 1)
+            
+    (height, width, n_channel) = image.shape
+    
+    if n_channel > 1:
+        
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image
+        
+ 
+    # Flatten the 2D image array into an MxN feature vector, where M is the number of pixels and N is the dimension (number of channels).
+    reshaped = image.reshape(image.shape[0] * image.shape[1], image.shape[2])
+    
+    # Perform K-means clustering.
+    if args_num_clusters < 2:
+        print('Warning: num-clusters < 2 invalid. Using num-clusters = 2')
+    
+    # define number of cluster, at lease 2 cluster including background
+    numClusters = max(2, args_num_clusters)
+    
+    # clustering method
+    kmeans = KMeans(n_clusters = numClusters, n_init = 40, max_iter = 500).fit(reshaped)
+    
+    # get lables 
+    pred_label = kmeans.labels_
+    
+    # Reshape result back into a 2D array, where each element represents the corresponding pixel's cluster index (0 to K - 1).
+    clustering = np.reshape(np.array(pred_label, dtype=np.uint8), (image.shape[0], image.shape[1]))
+
+    # Sort the cluster labels in order of the frequency with which they occur.
+    sortedLabels = sorted([n for n in range(numClusters)],key = lambda x: -np.sum(clustering == x))
+
+    # Initialize K-means grayscale image; set pixel colors based on clustering.
+    kmeansImage = np.zeros(image.shape[:2], dtype=np.uint8)
+    for i, label in enumerate(sortedLabels):
+        kmeansImage[clustering == label] = int(255 / (numClusters - 1)) * i
+    
+    (ret, thresh) = cv2.threshold(kmeansImage,0,255,cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    
+    '''
+    if np.count_nonzero(thresh) > 0:
+        
+        thresh_cleaned = clear_border(thresh)
+    else:
+        thresh_cleaned = thresh
+    '''
+    
+    #thresh_cleaned = thresh
+    
+    img_thresh = thresh
+    
+    '''
+    (numLabels, labels, stats, centroids) = cv2.connectedComponentsWithStats(thresh_cleaned, connectivity = 8)
+     
+    
+    # stats[0], centroids[0] are for the background label. ignore
+    # cv2.CC_STAT_LEFT, cv2.CC_STAT_TOP, cv2.CC_STAT_WIDTH, cv2.CC_STAT_HEIGHT
+    
+    # extract the connected component statistics for the current label
+    sizes = stats[1:, cv2.CC_STAT_AREA]
+    Coord_left = stats[1:, cv2.CC_STAT_LEFT]
+    Coord_top = stats[1:, cv2.CC_STAT_TOP]
+    Coord_width = stats[1:, cv2.CC_STAT_WIDTH]
+    Coord_height = stats[1:, cv2.CC_STAT_HEIGHT]
+    Coord_centroids = np.delete(centroids,(0), axis=0)
+    
+
+    
+    #print("Coord_centroids {}\n".format(centroids[1][1]))
+    
+    #print("[width, height] {} {}\n".format(width, height))
+    
+    numLabels = numLabels - 1
+    '''
+
+    
+    
+    ################################################################################################
+
+    '''
+    min_size = 100
+    max_size = min(width*height, args_max_size)
+
+    # initialize an output mask
+    mask = np.zeros(gray.shape, dtype="uint8")
+    
+    # loop over the number of unique connected component labels, skipping
+    # over the first label (as label zero is the background)
+    for i in range(1, numLabels):
+    # extract the connected component statistics for the current label
+        x = stats[i, cv2.CC_STAT_LEFT]
+        y = stats[i, cv2.CC_STAT_TOP]
+        w = stats[i, cv2.CC_STAT_WIDTH]
+        h = stats[i, cv2.CC_STAT_HEIGHT]
+        area = stats[i, cv2.CC_STAT_AREA]
+    
+        
+        # ensure the width, height, and area are all neither too small
+        # nor too big
+        keepWidth = w > 0 and w < 6000
+        keepHeight = h > 0 and h < 4000
+        keepArea = area > min_size and area < max_size
+        
+        #if all((keepWidth, keepHeight, keepArea)):
+        # ensure the connected component we are examining passes all three tests
+        #if all((keepWidth, keepHeight, keepArea)):
+        if keepArea:
+        # construct a mask for the current connected component and
+        # then take the bitwise OR with the mask
+            print("[INFO] keeping connected component '{}'".format(i))
+            componentMask = (labels == i).astype("uint8") * 255
+            mask = cv2.bitwise_or(mask, componentMask)
+            
+    
+    img_thresh = mask
+    
+    '''
+    ###################################################################################################
+    size_kernel = 5
+    
+    #if mask contains mutiple non-connected parts, combine them into one. 
+    (contours, hier) = cv2.findContours(img_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(contours) > 1:
+        
+        print("mask contains mutiple non-connected parts, combine them into one\n")
+        
+        kernel = np.ones((size_kernel,size_kernel), np.uint8)
+
+        dilation = cv2.dilate(img_thresh.copy(), kernel, iterations = 1)
+        
+        closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, kernel)
+        
+        img_thresh = closing
+    
+    
+    return img_thresh
+
+
 
 
 # compute all the traits
@@ -239,6 +414,19 @@ def u2net_seg(image_file):
         # use mask to generate segmentation object
         masked_rgb_seg = cv2.bitwise_and(orig, orig, mask = cleaned_thresh)
         
+        ##############################################################################################
+        n_cluster = 2
+        
+        args_channels = '0'
+        
+        args_colorspace = 'lab'
+        
+        thresh_cluster = color_cluster_seg(masked_rgb_seg, args_colorspace, args_channels, n_cluster)
+        
+        #thresh_cluster = cv2.threshold(thresh_cluster, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        
+        
+        masked_rgb_seg = cv2.bitwise_and(masked_rgb_seg, masked_rgb_seg, mask = thresh_cluster)
         
         #result_img_path = result_path + 'masked_rgb_seg.png'
         #cv2.imwrite(result_img_path, masked_rgb_seg)
@@ -444,12 +632,12 @@ if __name__ == '__main__':
     #########################################################################
     # analysis pipeline
     # loop execute
-    
+    '''
     # marker result path
     mkpath = os.path.dirname(file_path) +'/cropped'
     mkdir(mkpath)
     marker_path = mkpath + '/'
-    
+    '''
     
     # save result as an excel file
     ratio_sum = []

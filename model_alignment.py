@@ -703,11 +703,11 @@ if __name__ == '__main__':
         print("results_folder: {}\n".format(result_path))
         
         # number of slices for cross-section
-        #n_plane = args['n_plane']
+        n_plane = args['n_plane']
         
-        #slicing_ratio = args["slicing_ratio"]
+        slicing_ratio = args["slicing_ratio"]
 
-        #adjustment = args["adjustment"]
+        adjustment = args["adjustment"]
 
         # start pipeline
         ########################################################################################
