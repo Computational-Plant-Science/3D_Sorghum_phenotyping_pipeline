@@ -46,7 +46,8 @@ import argparse
 import cv2
 import imutils
 import openpyxl
-
+import random as nd
+from imutils.object_detection import non_max_suppression
 
 from sklearn.cluster import KMeans
 
@@ -101,69 +102,108 @@ def marker_detect(img_rgb):
     else:
         img_gray = orig
     
-    (ret, thresh) = cv2.threshold(img_gray, 50, 255, 0)
     
-    # Find the contours in the image using cv2.findContours() function.
-    contours,hierarchy = cv2.findContours(thresh, 1, 2)
+
+    ###################################################################
     
-    print("Number of contours detected:", len(contours))
+    # Store width and height of template in w and h 
+    w, h = template.shape[::-1]
+    
+    img_overlay = img_rgb.copy()
+    
+
+    
+    # Passing the image to matchTemplate method 
+    match = cv2.matchTemplate(image = img_gray, templ=template, method=cv2.TM_CCOEFF_NORMED)
+    
+    # Specify a threshold 
+    threshold = 0.5
+
+    # Select rectangles with 
+    # confidence greater than threshold 
+    (y_points, x_points) = np.where(match >= threshold) 
+
+    # initialize our list of rectangles 
+    boxes = list() 
+
+    # loop over the starting (x, y)-coordinates again 
+    for (x, y) in zip(x_points, y_points): 
+
+        # update our list of rectangles 
+        boxes.append((x, y, x + w, y + h))
+        
+
+
+    # apply non-maxima suppression to the rectangles 
+    # this will create a single bounding box 
+    boxes = non_max_suppression(np.array(boxes)) 
+    
+    blank_image = np.zeros(img_rgb.shape, np.uint8)
     
     
-    i = 0
+    # loop over the final bounding boxes 
+    for (x1, y1, x2, y2) in boxes: 
+
+        # draw the bounding box on the image 
+        #img_overlay = cv2.rectangle(blank_image, (x1, y1), (x2, y2), (0, 255, 255), 3)
+        blank_image = cv2.rectangle(blank_image, (x1, y1), (x2, y2), (255, 255, 255), -1) 
     
-    # initialize square width 
+    
+    (ret, thresh_mask) = cv2.threshold(cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY), 127, 255, 0)
+    
+    #mask = np.zeros(image.shape[:2], dtype="uint8")
+    
+    #cv2.rectangle(mask, (0, 90), (290, 450), 255, -1)
+    
+    # use mask to generate segmentation object
+    masked_marker = cv2.bitwise_and(img_rgb, img_rgb, mask = thresh_mask)
+    
+    #img_overlay = cv2.bitwise_and(img_rgb, img_rgb, mask = thresh_mask)
+    
+    
+    ####################################################################
+    # AI pre-trained model to segment plant object, return mask
+    masked_marker_seg = remove(masked_marker, only_mask = True).copy()
+    
+    #img_overlay = remove(masked_marker, only_mask = True).copy()
+    
+    #masked_marker_seg_gray = cv2.cvtColor(masked_marker_seg, cv2.COLOR_BGR2GRAY)
+    
+    
+    
+    # Apply thresholding to create a binary image
+    _, thresh = cv2.threshold(masked_marker_seg, 127, 255, cv2.THRESH_BINARY)
+
+    # Find contours in the binary image
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    print("Number of contours detected:\n", len(contours))
+    
+    
     width_rec = []
     
-    img_overlay = img_rgb
     
-    # list for storing names of shapes 
-    for cnt in contours:
+    # Draw bounding boxes around the contours
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        img_overlay = cv2.rectangle(masked_marker, (x, y), (x + w, y + h), (0, 255, 0), 2)
         
-        # here we are ignoring first counter because  
-        # findcontour function detects whole image as shape 
-        if i == 0: 
-            i = 1
-            continue
-
-        x1,y1 = cnt[0][0]
+        bb_w = min(w, h)
         
-              
-        # cv2.approxPloyDP() function to approximate the shape
-        approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
-
-        if len(approx) == 4:
-          
-            (x, y, w, h) = cv2.boundingRect(cnt)
+        if bb_w> 300 and bb_w < 400:
+        
+            print("Bounding box size: {}\n".format((bb_w)))
             
-            # compute the center of the contour
-            M = cv2.moments(cnt)
-            
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-            else:
-                # set values as what you need in the situation
-                cX, cY = 0, 0
+            width_rec.append(bb_w)
 
-            ratio = float(w)/h
-            
-            if (cX < img_width*0.3 or cX > img_width*0.6) and (cY > img_width*0.3 or cY < img_width*0.6):
-                
-                    # define threshold for the dimension of square 
-                    if min(w,h) > 80 and max(w,h) < 300:
-                        
-                        if ratio >= 0.7 and ratio <= 1.2:
-
-                            img_overlay = cv2.drawContours(img_rgb, [cnt], -1, (0,255,255), 5)
-
-                            width_rec.append((w+h)*0.5)
-
+    
+    ###################################################################
     # compute the average of detected square dimension in pixels
     if len(width_rec) > 0:
         
         avg_width = np.mean(width_rec)
         
-        pixel_cm_ratio = avg_width/2.5
+        pixel_cm_ratio = avg_width/34
      
     else:
         
@@ -172,7 +212,11 @@ def marker_detect(img_rgb):
     
     return img_overlay, avg_width, pixel_cm_ratio
     
+
+
+ 
     
+
 
 # segment foreground object using color clustering method
 def color_cluster_seg(image, args_colorspace, args_channels, args_num_clusters):
@@ -380,10 +424,13 @@ def u2net_seg(image_file):
         print("Image file size: {} MB, dimension: {} X {}, channels : {}\n".format(str(file_size), img_height, img_width, img_channels))
         
 
+        cleaned_thresh = orig
         
+        masked_rgb_seg = orig
         
         # marker_detect(image)
-        (img_overlay, avg_width, pixel_cm_ratio) = marker_detect(image.copy())
+        #(img_overlay, avg_width, pixel_cm_ratio) = marker_detect(image.copy())
+        
         
         ######################################################################################
 
@@ -392,7 +439,6 @@ def u2net_seg(image_file):
         thresh_seg = remove(orig, only_mask = True).copy()
         
 
-       
         #####################################################################################
         # find the largest contour in the threshold image
         
@@ -409,12 +455,22 @@ def u2net_seg(image_file):
         cleaned_thresh = cv2.drawContours(blank_image, [c], -1, (255, 255, 255), cv2.FILLED)
         
         
-       
+        # Inverting the mask by 
+        # performing bitwise-not operation 
+        cleaned_thresh = cv2.bitwise_not(cleaned_thresh) 
+
+
         #cleaned_thresh = thresh_seg
         
         # use mask to generate segmentation object
         masked_rgb_seg = cv2.bitwise_and(orig, orig, mask = cleaned_thresh)
         
+
+        # marker_detect(image)
+        (img_overlay, avg_width, pixel_cm_ratio) = marker_detect(masked_rgb_seg.copy())
+        
+
+        '''
         ##############################################################################################
         n_cluster = 2
         
@@ -441,7 +497,7 @@ def u2net_seg(image_file):
         
         
         #masked_rgb_seg = cv2.drawContours(masked_rgb_seg, [c], -1, (0, 255, 0), 3)
-        
+        '''
 
     return cleaned_thresh, masked_rgb_seg, img_overlay, avg_width, pixel_cm_ratio
         
@@ -553,6 +609,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument("-p", "--path", dest = "path", type = str, required = True,    help = "path to image file")
     ap.add_argument("-ft", "--filetype", dest = "filetype", type = str, required = False, default='jpg,png', help = "Image filetype")
+    ap.add_argument("-tp", "--temp_path", dest = "temp_path", type = str, required = True,  help = "template image path")
     ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False,    help = "result path")
     ap.add_argument('-min', '--min_size', dest = "min_size", type = int, required = False, default = 1600,  help = 'min size of object to be segmented.')
     ap.add_argument('-max', '--max_size', dest = "max_size", type = int, required = False, default = 1000000,  help = 'max size of object to be segmented.')
@@ -572,8 +629,24 @@ if __name__ == '__main__':
     imgList = sorted(glob.glob(image_file_path))
 
     
+    # Load the template 
+    template_file = args['temp_path'] + "template.jpg"
+    
+    template_path = os.path.abspath(template_file)
+
+    
+    if os.path.exists(template_path):
+        
+        print("Found template path {}\n".format(template_path))
+        
+        template = cv2.imread(template_path, 0)
+        
+    else:
+        print("Error in loading template file\n")
+    
+    
     # result path
-    mkpath = os.path.dirname(file_path) +'/segmentation'
+    mkpath = os.path.dirname(file_path) +'/detection'
     mkdir(mkpath)
     seg_path = mkpath + '/'
     
@@ -656,7 +729,7 @@ if __name__ == '__main__':
         (cleaned_thresh, masked_rgb_seg, img_overlay, avg_width, pixel_cm_ratio) = u2net_seg(image_file)
 
         # save masked result image as png format
-        write_image_output(masked_rgb_seg, result_path, basename, '_masked.', ext)
+        write_image_output(img_overlay, result_path, basename, '_masked.', ext)
 
         # store iteration end timestamp
         end = time.time()
@@ -679,14 +752,11 @@ if __name__ == '__main__':
         ################################################################
         '''
         
-        
 
-    
-    
+
     ratio_sum_file = (result_path + 'unit.xlsx')
 
     write_excel_output(ratio_sum_file, ratio_sum)
-
 
 
     
