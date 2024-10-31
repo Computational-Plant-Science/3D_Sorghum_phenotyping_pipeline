@@ -1,7 +1,7 @@
 """
 Version: 1.5
 
-Summary: Statistical outlier removal for 3d point cloud
+Summary: Automatic 3D model cleaning using Statistical outlier removal 
 
 Author: suxing liu
 
@@ -9,18 +9,21 @@ Author-email: suxingliu@gmail.com
 
 USAGE
 
-    python3 model_clean_3D.py -i ~/example/test.ply -o ~/example/result/ --outlier_ratio  0.1
+    python3 model_clean_3D.py -i ~/example/test.ply -o ~/example/result/ 
 
 
 argument:
     ("-i", "--input", dest="input", type=str, required=True, help="full path to 3D model file")
     ("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
-    ("--outlier_ratio", required = False, type = float, default = 0.1, help = "outlier remove ratio")
+    ("--nb_neighbors", required = False, type = int, default = 20, help = "nb_neighbors")
+    ("--std_ratio", required = False, type = float, default = 5.0, help = "outlier remove ratio, small number = aggresive")
+    ("--black_filter", required = False, type = int, default = 0, help = "Apply black points removal filter or not, 0 = not, 1 = Apply")
+    ("--black_threshold", required = False, type = float, default = 0.2, help = "threshold for black points removal")
 
 
 output:
 
-    *_aligned.ply: aligned model with only 3D coordinates of points 
+    *_cleaned.ply: cleaned 3d model 
 
 """
 #!/usr/bin/env python

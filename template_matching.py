@@ -203,7 +203,7 @@ def marker_detect(img_rgb):
         
         avg_width = np.mean(width_rec)
         
-        pixel_cm_ratio = avg_width/34
+        pixel_cm_ratio = avg_width/50.8
      
     else:
         
