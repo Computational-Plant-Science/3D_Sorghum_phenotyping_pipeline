@@ -325,12 +325,12 @@ def model_alignment(model_file, result_path, adjustment):
     #print(list_dis)
     
     #print(idx_sorted)
-    
+    '''
     # apply adjustment if alignment was not correct
     if adjustment == 1:
         print("Manual adjustment was applied!")
         idx_sorted[0] = 1
-        
+    '''
 
 
     # estimate the orientation 
@@ -414,7 +414,7 @@ def model_alignment(model_file, result_path, adjustment):
         
         print("Flip model along Z axis\n")
         
-        v_z_reverse = [0,0,-1]
+        v_z_reverse = [0, 0, -1]
     
         #compute the rotation matrix that aligns unit vector Z to orientation vector
         #R_matrix_flip = rotation_matrix_from_vectors(v_z_reverse, v_z)
@@ -425,15 +425,16 @@ def model_alignment(model_file, result_path, adjustment):
         pcd_r.rotate(R_matrix_flip, center = (0,0,0))
     
     ######################################################################
+    
     if adjustment == 1:
         
-        R_adjust = pcd_r.get_rotation_matrix_from_xyz((np.pi, np.pi/2, 0))
+        R_adjust = pcd_r.get_rotation_matrix_from_xyz((np.pi/2, 0, 0))
         
         #R_adjust = pcd_r.get_rotation_matrix_from_xyz((0, 0, 0))
         
         pcd_r.rotate(R_adjust, center = (0,0,0))
     
-        
+    
     
     # estimate the orientation of 3d model using sliced diameters
 
