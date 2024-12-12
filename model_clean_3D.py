@@ -265,7 +265,7 @@ def format_converter(model_file):
     #o3d.visualization.draw_geometries([pcd])
     #o3d.visualization.draw_geometries([pcd_sel])
     
-    print("Showing outliers (red) and inliers (gray): ")
+    #print("Showing outliers (red) and inliers (gray): ")
     #pcd_sel.paint_uniform_color([1, 0, 0])
     #o3d.visualization.draw_geometries([pcd, pcd_sel])
 

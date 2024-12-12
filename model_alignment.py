@@ -17,7 +17,7 @@ PARAMETERS:
     ("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
     ("--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
     ("--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
-    ("--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
+    ( "--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "model adjustment, 0: no adjustment, 1: rotate np.pi/2, -1: rotate -np.pi/2")
 
 INPUT:
     
@@ -426,14 +426,21 @@ def model_alignment(model_file, result_path, adjustment):
     
     ######################################################################
     
-    if adjustment == 1:
+    if adjustment == 0:
         
-        R_adjust = pcd_r.get_rotation_matrix_from_xyz((np.pi/2, 0, 0))
+        print("No manual rotation needed...\n")
         
-        #R_adjust = pcd_r.get_rotation_matrix_from_xyz((0, 0, 0))
+    else:
+        
+        # rotate along x for  np.pi/2 * adjustment value
+        
+        R_adjust = pcd_r.get_rotation_matrix_from_xyz((adjustment*np.pi/2, 0, 0))
         
         pcd_r.rotate(R_adjust, center = (0,0,0))
-    
+        
+        print("Manual rotation {}*np.pi/2...\n".format(adjustment))
+        
+        
     
     
     # estimate the orientation of 3d model using sliced diameters
@@ -681,7 +688,7 @@ if __name__ == '__main__':
     ap.add_argument("-o", "--output_path", dest = "output_path", type = str, required = False, help = "result path")
     ap.add_argument("--n_plane", dest = "n_plane", type = int, required = False, default = 5,  help = "Number of planes to segment the 3d model along Z direction")
     ap.add_argument( "--slicing_ratio", dest = "slicing_ratio", type = float, required = False, default = 0.10, help = "ratio of slicing the model from the bottom")
-    ap.add_argument( "--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "adjust model manually or automatically, 0: automatically, 1: manually")
+    ap.add_argument( "--adjustment", dest = "adjustment", type = int, required = False, default = 0, help = "model adjustment, 0: no adjustment, 1: rotate np.pi/2, -1: rotate -np.pi/2")
     args = vars(ap.parse_args())
 
     
