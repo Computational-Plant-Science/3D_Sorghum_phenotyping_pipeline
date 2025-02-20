@@ -436,6 +436,8 @@ def model_alignment(model_file, result_path, adjustment):
         
         R_adjust = pcd_r.get_rotation_matrix_from_xyz((adjustment*np.pi/2, 0, 0))
         
+        #R_adjust = pcd_r.get_rotation_matrix_from_xyz((0, adjustment*np.pi/2, 0))
+        
         pcd_r.rotate(R_adjust, center = (0,0,0))
         
         print("Manual rotation {}*np.pi/2...\n".format(adjustment))

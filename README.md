@@ -100,12 +100,13 @@ python3 /opt/code/pipeline.py -i /srv/test/test.ply -o /srv/test/result/
 
 
 # Author
-Suxing Liu (suxingliu@gmail.com), Wesley Paul Bonelli(wbonelli@uga.edu), Alexander Bucksch
+
+Suxing Liu (suxingliu@gmail.com)
 
 
 ## Other contributions
 
-Docker container was maintained and deployed to [PlantIT](https://portnoy.cyverse.org) by Wes Bonelli (wbonelli@uga.edu).
+Docker container was maintained and deployed to [PlantIT](https://portnoy.cyverse.org) by Suxing Liu (suxingliu@gmail.com), Wes Bonelli (wbonelli@ucar.edu).
 
 
 # License

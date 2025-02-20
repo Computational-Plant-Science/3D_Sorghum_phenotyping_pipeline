@@ -242,7 +242,8 @@ def get_pt_sel_parameter(Data_array_pt, n_plane):
         #orientation_angle = r.as_euler('xyz', degrees=True)
         #print("orientation_angle =  {} \n".format(orientation_angle))
         
-        
+        #visualize the convex hull as a red LineSet
+        #o3d.visualization.draw_geometries([pt_sel_filter, obb])
 
         
         ################################################################
@@ -260,6 +261,7 @@ def get_pt_parameter(pcd):
     
     # get convex hull of a point cloud is the smallest convex set that contains all points.
     hull, _ = pcd.compute_convex_hull()
+    
     #hull_ls = o3d.geometry.LineSet.create_from_triangle_mesh(hull)
     #hull_ls.paint_uniform_color((1, 0, 0))
     
@@ -293,7 +295,7 @@ def get_pt_parameter(pcd):
     pt_length = (aabb_extent[2])
 
     # compute as cylinder
-    #pt_volume = np.pi * ((pt_diameter*0.5) ** 2) * pt_length
+    #pt_volume = np.pi * ((pt_diameter_avg*0.5) ** 2) * pt_length
     
     # compute as convexhull volume
     pt_volume = hull.get_volume()
@@ -555,40 +557,6 @@ def analyze_pt(pt_file):
     # The number of points per line
     
     if visualize == 1:
-    
-        '''
-        from mayavi import mlab
-        from tvtk.api import tvtk
-        
-        mlab.figure("point_cloud", size = (800, 800), bgcolor = (0, 0, 0))
-        
-        mlab.clf()
-
-
-        #visualize point cloud model with color
-        ####################################################################
-
-        x, y, z = Data_array_pcloud[:,0], Data_array_pcloud[:,1], Data_array_pcloud[:,2] 
-        
-        
-        pts = mlab.points3d(x,y,z, mode = 'point')
-        
-        sc = tvtk.UnsignedCharArray()
-        
-        sc.from_array(pcd_color)
-
-        pts.mlab_source.dataset.point_data.scalars = sc
-        
-        pts.mlab_source.dataset.modified()
-
-        #####################################################################
-        #visualize point cloud model with color
-        pts = mlab.points3d(pt_center_arr[:,0], pt_center_arr[:,1], pt_center_arr[:,2], color = (1,0,0), mode = 'sphere', scale_factor = 0.08)
-        
-        pts = mlab.plot3d(pt_center_arr[:,0], pt_center_arr[:,1], pt_center_arr[:,2], tube_radius = 0.025, color = (0,1,0))
-
-        mlab.show()
-        '''
     
         # Visualization of center curve
         ####################################################################
